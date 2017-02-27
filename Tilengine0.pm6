@@ -10,31 +10,39 @@ class Tile is repr('CStruct') is export {
 
 class Tilengine is export {
     # window creation flags
-    method CWF_FULLSCREEN { 1 +< 0 };
-    method CWF_VSYNC	  { 1 +< 1 };
-    method CWF_S1	  { 1 +< 2 };
-    method CWF_S2	  { 2 +< 2 };
-    method CWF_S3	  { 3 +< 2 };
-    method CWF_S4	  { 4 +< 2 };
-    method CWF_S5	  { 5 +< 2 };
+    method CWF_FULLSCREEN { 1 +< 0 }
+    method CWF_VSYNC	  { 1 +< 1 }
+    method CWF_S1	  { 1 +< 2 }
+    method CWF_S2	  { 2 +< 2 }
+    method CWF_S3	  { 3 +< 2 }
+    method CWF_S4	  { 4 +< 2 }
+    method CWF_S5	  { 5 +< 2 }
 
     # inputs
-    method INPUT_NONE 	{ 0 };
-    method INPUT_UP 	{ 1 };
-    method INPUT_DOWN 	{ 2 };
-    method INPUT_LEFT 	{ 3 };
-    method INPUT_RIGHT	{ 4 };
-    method INPUT_A 	{ 5 };
-    method INPUT_B 	{ 6 };
-    method INPUT_C 	{ 7 };
-    method INPUT_D 	{ 8 };
+    method INPUT_NONE 	{ 0 }
+    method INPUT_UP 	{ 1 }
+    method INPUT_DOWN 	{ 2 }
+    method INPUT_LEFT 	{ 3 }
+    method INPUT_RIGHT	{ 4 }
+    method INPUT_A 	{ 5 }
+    method INPUT_B 	{ 6 }
+    method INPUT_C 	{ 7 }
+    method INPUT_D 	{ 8 }
 
     # flags
-    method FLAG_NONE	 {	 0 };
-    method FLAG_FLIPX	 { 1 +< 15 };
-    method FLAG_FLIPY	 { 1 +< 14 };
-    method FLAG_ROTATE	 { 1 +< 13 };
-    method FLAG_PRIORITY { 1 +< 12 };
+    method FLAG_NONE	 {	 0 }
+    method FLAG_FLIPX	 { 1 +< 15 }
+    method FLAG_FLIPY	 { 1 +< 14 }
+    method FLAG_ROTATE	 { 1 +< 13 }
+    method FLAG_PRIORITY { 1 +< 12 }
+
+    # blend modes
+    method BLEND_NONE	{ 0 }
+    method BLEND_MIX	{ 1 }
+    method BLEND_ADD	{ 2 }
+    method BLEND_SUB	{ 3 }
+    method BLEND_MOD	{ 4 }
+    method MAX_BLEND	{ 5 }
 
     my sub TLN_Init(int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * };
     method Init (int32 $hres, int32 $vres, int $numlayers, int $numsprites, int $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) };
@@ -59,6 +67,12 @@ class Tilengine is export {
 
     my sub TLN_SetLayer(int32, Pointer, Pointer) is native('Tilengine') { * };
     method SetLayer(int32 $nlayer, Pointer $tileset, Pointer $tilemap) { TLN_SetLayer($nlayer, $tileset, $tilemap) };
+
+    my sub TLN_SetLayerBlendMode(int32, int32, uint8) returns bool is native('Tilengine') { * };
+    method SetLayerBlendMode(int32 $nlayer, int32 $mode, uint8 $factor) { TLN_SetLayerBlendMode($nlayer, $mode, $factor) };
+
+    my sub TLN_SetLayerScaling(int32, num32, num32) returns bool is native('Tilengine') { * };
+    method SetLayerScaling(int32 $nlayer, num32 $sx, num32 $sy) { TLN_SetLayerScaling($nlayer, $sx, $sy) };
 
     my sub TLN_LoadSequencePack(Str) returns Pointer is native('Tilengine') { * };
     method LoadSequencePack(Str $filename) { TLN_LoadSequencePack($filename) };
