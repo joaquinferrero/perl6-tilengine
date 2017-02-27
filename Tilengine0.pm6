@@ -8,6 +8,14 @@ class Tile is repr('CStruct') is export {
     has int32 $.flags is rw;
 }
 
+class Affine is repr('CStruct') is export  {
+    has num32 $.angle is rw;
+    has num32 $.dx    is rw;
+    has num32 $.dy    is rw;
+    has num32 $.sx    is rw;
+    has num32 $.sy    is rw;
+}
+
 class Tilengine is export {
     # window creation flags
     method CWF_FULLSCREEN { 1 +< 0 }
@@ -113,6 +121,9 @@ class Tilengine is export {
     my sub TLN_SetPaletteAnimation(int32, Pointer, Pointer, bool) is native('Tilengine') { * };
     method SetPaletteAnimation(int32 $index, Pointer $palette, Pointer $sequence, bool $blend) { TLN_SetPaletteAnimation($index, $palette, $sequence, $blend) };
 
+    my sub TLN_SetRasterCallback(&callback (Int)) is native('Tilengine') { * };
+    method SetRasterCallback(&callback) { TLN_SetRasterCallback(&callback) };
+
     my sub TLN_ProcessWindow() returns bool is native('Tilengine') { * };
     method ProcessWindow() { TLN_ProcessWindow() };
 
@@ -152,7 +163,7 @@ class Tilengine is export {
     my sub TLN_Deinit() is native('Tilengine') { * };
     method Deinit() { TLN_Deinit() };
 
-};
+}
 
 =finish
 

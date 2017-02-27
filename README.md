@@ -32,5 +32,5 @@ Programas disponibles:
 * Tilengine0.pm6 y Tilengine1.pm6 - versiones beta de la biblioteca
 * Tilengine.net.pm6 - biblioteca generada por conversor.pl
 * conversor.pl - Programa en Perl 5 para intentar convertir la biblioteca .h a .pm6
-
+* nativecall-window-test1.p6 - Programa de ejemplo en Windows. Dibuja un rectángulo dentro de la ventana del programa SnippingTool.exe
 
