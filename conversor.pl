@@ -1,25 +1,100 @@
 #!/usr/bin/env perl
 #
-# Conversor de la API desde C++ a Perl 6
+# Conversor de la API desde C++ a Perl 6 (escrito en Perl 5)
 # Joaquín Ferrero
+# 
+# Primera versión: 23/02/2016
 #
-use v5.14;
+use v5.24;
+use feature 'signatures';
 use strict;
 use warnings;
+no warnings "experimental::signatures";
 use autodie;
 
+my $en_cmt = 'E0';
+
+open my $FH_API, '<:crlf', '../../lib/Tilengine.h';
+while (<$FH_API>) {
+    chomp;
+
+    # líneas vacías
+    if (/^ \s* $/x  and $en_cmt =~ /E0/) {
+	say "";
+	next;
+    }
+
+    # líneas de defines ifdef/ifndef/else/elif/endif
+    if (/^ \s* [#] (?:if|el|endif)/x) {
+    	next;
+    }
+
+    # línas de defines
+    if (my($nombre, $valor) = /^ \s* [#] \s* define \s+ (\S+) \s* (.*)/x) {
+	$valor = 'undef' if not $valor;
+	say parsea_define($nombre, $valor);
+    	next;
+    }
+
+    # líneas de typedef de una línea
+    if (m{^ typedef (?<tipo>.+?) \s+ (?<nuevotipo>\w+); (?: \s* [/] [*] (?<comentario>.+?) [*] [/])? }x) {
+    	my $cmt = $+{comentario} // '';
+    	$cmt = "\t\t# $cmt" if $cmt;
+	say "TYPEDEF: $+{tipo} $+{nuevotipo} $cmt";
+	# HERE guardar la definición de tipos en un hash
+	next;
+    }
+
+    # comentarios de una línea
+    if (my($cmt) = m{^ \s* [/] [*] (.*?) [*] [/]}x) {
+    	next if $cmt =~ /\@[{}]/;
+        say "# $cmt";
+    	next;
+    }
+
+    # comentarios de varias líneas
+    if (my $cmt = m{ ^ \s* [/] [*] }x .. m{ [*] [/] $ }x) {
+        s{^ \s* [/] [*] \s* }{}x;
+        s{  \s* [*] [/] $   }{}x;
+        s{^ \s* [*] \s*     }{}x;
+        say "# $_";
+        $en_cmt = $cmt;
+    	next;
+    }
+
+    # Si llegamos aquí, nos hemos dejado algo
+    say "ERROR: [$_]";
+}
+close $FH_API;
+
+sub parsea_define($nombre, $valor) {
+    my $define_funcion = 0;
+    if ($nombre =~ /^ (.+?) \( (.+?) \)/x) {
+	$nombre = "sub $1(\$$2) {";
+	$define_funcion = $2;
+    }
+    else {
+    	$nombre = "constant $nombre =";
+    }
+    $valor =~ s/<</+</g;
+    $valor =~ s/[|]/+|/g;
+    if ($define_funcion) {
+	$valor =~ s/\b$define_funcion\b/\$$define_funcion/g;
+	$valor .= " }";
+    }
+
+    return "$nombre $valor";
+}
+
+__END__
 
 # Leer la API en C++
 my @funciones;
-open my $FH_API, '<', '../../lib/Tilengine.h';
-while (<$FH_API>) {
     if (/^TLNAPI (?<retorno>const char [*]|\w+) ?(?<function>\w+) ?\((?<args>.+?)\);/) {
 	#print;
     	#say "$+{function}($+{args})=>$+{retorno}\n";
     	push @funciones, [$+{function}, $+{args}, $+{retorno}];
     }
-}
-close $FH_API;
 
 my($y, $m, $d) = (localtime)[5, 4, 3];
 $m++;

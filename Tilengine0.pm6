@@ -3,7 +3,6 @@ unit module Game::Engine::Tilengine:ver<0.0.1>:auth<Joaquin Ferrero (jferrero@gm
 
 use NativeCall;
 
-
 class Tile is repr('CStruct') is export {
     has int32 $.index is rw;
     has int32 $.flags is rw;
