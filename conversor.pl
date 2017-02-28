@@ -12,7 +12,29 @@ use warnings;
 no warnings "experimental::signatures";
 use autodie;
 
+my %tipos_predefinidos = (
+    'unsigned char'	=> 'uint8',
+    'unsigned short'	=> 'uint16',
+    'unsigned int'	=> 'uint32',
+    'uint8_t'		=> 'uint8',
+    'uint16_t'		=> 'uint16',
+    'uint32_t'		=> 'uint32',
+    'uint64_t'		=> 'uint64',
+    'char'		=> 'int8',
+    'short'		=> 'int16',
+    'int'		=> 'int32',
+    'int8_t'		=> 'int8',
+    'int16_t'		=> 'int16',
+    'int32_t'		=> 'int32',
+    'int64_t'		=> 'int64',
+    'float'		=> 'num32',
+    'double'		=> 'num64',
+);
+
+
 my $en_cmt = 'E0';
+my %tipos_definidos;
+my @cache_enum;
 
 open my $FH_API, '<:crlf', '../../lib/Tilengine.h';
 while (<$FH_API>) {
@@ -37,11 +59,41 @@ while (<$FH_API>) {
     }
 
     # líneas de typedef de una línea
-    if (m{^ typedef (?<tipo>.+?) \s+ (?<nuevotipo>\w+); (?: \s* [/] [*] (?<comentario>.+?) [*] [/])? }x) {
+    if (m{^ typedef \s+ (?<tipo>.+?) \s+ (?<nuevotipo>\w+); (?: (?<sp>\s*) [/] [*] (?<comentario>.+?) [*] [/])? }x) {
     	my $cmt = $+{comentario} // '';
-    	$cmt = "\t\t# $cmt" if $cmt;
-	say "TYPEDEF: $+{tipo} $+{nuevotipo} $cmt";
-	# HERE guardar la definición de tipos en un hash
+    	my($tipo, $nuevotipo) = @+{qw(tipo nuevotipo)};
+    	$cmt = "$+{sp}# $cmt" if $cmt;
+	#say "TYPEDEF: $tipo $nuevotipo $cmt";
+	# cambiar los tipos
+	$tipo = $tipos_predefinidos{$tipo} // $tipo;
+	say "constant $nuevotipo = $tipo;$cmt";
+	$tipos_definidos{$nuevotipo} = $tipo;
+	next;
+    }
+
+    # líneas de typedef enum
+    if (/^ typedef [ ] enum/x .. /^ (\w+); $/x) {
+    	my $nombre = $1;
+    	next if /^ (?:typedef [ ] enum|[{}])/x;
+	if (defined $nombre) {
+	    say "enum $nombre (";
+	    my $cnt = 0;
+	    for my $cache (@cache_enum) {
+		$cache =~ m{(?<nombre>\w+)(?:\s*=\s*(?<valor>.+))?\s*,(?<comentario>\s*[/][*].+)\s*[*][/]};
+		my $nombre = $+{nombre} // "ERROR: [$cache]";
+		my $valor = $+{valor} // $cnt;
+		$valor = parsea_expr($valor);
+		my $cmt   = $+{comentario} // '';
+		$cmt =~ s{[/][*]}{#};
+		say "$nombre => $valor, $cmt";
+		$cnt++;
+	    }
+	    say ");";
+	    @cache_enum = ();
+	}
+	else {
+	    push @cache_enum, $_;
+	}
 	next;
     }
 
@@ -67,6 +119,12 @@ while (<$FH_API>) {
 }
 close $FH_API;
 
+sub parsea_expr ($expr) {
+    $expr =~ s/<</+</g;
+    $expr =~ s/[|]/+|/g;
+    return $expr;
+}
+
 sub parsea_define($nombre, $valor) {
     my $define_funcion = 0;
     if ($nombre =~ /^ (.+?) \( (.+?) \)/x) {
@@ -76,11 +134,13 @@ sub parsea_define($nombre, $valor) {
     else {
     	$nombre = "constant $nombre =";
     }
-    $valor =~ s/<</+</g;
-    $valor =~ s/[|]/+|/g;
+    $valor = parsea_expr($valor);
     if ($define_funcion) {
 	$valor =~ s/\b$define_funcion\b/\$$define_funcion/g;
 	$valor .= " }";
+    }
+    else {
+    	$valor .= ';';
     }
 
     return "$nombre $valor";
