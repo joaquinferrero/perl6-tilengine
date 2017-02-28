@@ -3,6 +3,7 @@ unit module Game::Engine::Tilengine:ver<0.0.1>:auth<Joaquin Ferrero (jferrero@gm
 
 use NativeCall;
 
+
 class Tile is repr('CStruct') is export {
     has int32 $.index is rw;
     has int32 $.flags is rw;
@@ -82,6 +83,12 @@ class Tilengine is export {
     my sub TLN_SetLayerScaling(int32, num32, num32) returns bool is native('Tilengine') { * };
     method SetLayerScaling(int32 $nlayer, num32 $sx, num32 $sy) { TLN_SetLayerScaling($nlayer, $sx, $sy) };
 
+    my sub TLN_SetLayerPosition(int32, int32, int32) returns bool is native('Tilengine') { * };
+    method SetLayerPosition(int32 $nlayer, int32 $hstart, int32 $vstart) { TLN_SetLayerPosition($nlayer, $hstart, $vstart) };
+
+    my sub TLN_ResetLayerMode(int32) returns bool is native('Tilengine') { * };
+    method ResetLayerMode(int32 $nlayer) { TLN_ResetLayerMode($nlayer) };
+
     my sub TLN_LoadSequencePack(Str) returns Pointer is native('Tilengine') { * };
     method LoadSequencePack(Str $filename) { TLN_LoadSequencePack($filename) };
 
@@ -121,8 +128,8 @@ class Tilengine is export {
     my sub TLN_SetPaletteAnimation(int32, Pointer, Pointer, bool) is native('Tilengine') { * };
     method SetPaletteAnimation(int32 $index, Pointer $palette, Pointer $sequence, bool $blend) { TLN_SetPaletteAnimation($index, $palette, $sequence, $blend) };
 
-    my sub TLN_SetRasterCallback(&callback (Int)) is native('Tilengine') { * };
-    method SetRasterCallback(&callback) { TLN_SetRasterCallback(&callback) };
+    sub TLN_SetRasterCallback(&callback (Int)) is native('Tilengine') { * };
+    #method SetRasterCallback(&callback (Int)) { TLN_SetRasterCallback(&callback) };
 
     my sub TLN_ProcessWindow() returns bool is native('Tilengine') { * };
     method ProcessWindow() { TLN_ProcessWindow() };
@@ -130,9 +137,6 @@ class Tilengine is export {
     my sub TLN_GetInput(int32) returns bool is native('Tilengine') { * };
     method GetInput(int32 $input) { TLN_GetInput($input) };
     
-    my sub TLN_SetLayerPosition(int32, int32, int32) returns bool is native('Tilengine') { * };
-    method SetLayerPosition(int32 $nlayer, int32 $hstart, int32 $vstart) { TLN_SetLayerPosition($nlayer, $hstart, $vstart) };
-
     my sub TLN_BeginWindowFrame(int32) is native('Tilengine') { * };
     method BeginWindowFrame(int32 $time) { TLN_BeginWindowFrame($time) };
     

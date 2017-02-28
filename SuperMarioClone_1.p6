@@ -8,7 +8,7 @@
 use NativeCall;
 
 use lib '../bindings/perl';
-use Tilengine;
+use Tilengine0;
 
 my $tln = Tilengine.new();
 
