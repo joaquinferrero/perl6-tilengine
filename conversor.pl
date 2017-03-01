@@ -29,14 +29,23 @@ my %tipos_predefinidos = (
     'int64_t'		=> 'int64',
     'float'		=> 'num32',
     'double'		=> 'num64',
+    'const char ?[*]'	=> 'Pointer',
 );
 
+my $re_comentario = qr{ [/][*] \s* (?<comentario>.*) \s* [*][/] }x;
 
 my $en_cmt = 'E0';
 my %tipos_definidos;
-my @cache_enum;
+my @cache;
 
 open my $FH_API, '<:crlf', '../../lib/Tilengine.h';
+
+say "use v6;";
+say "unit class Tilengine:ver<117.2.27>:auth<Joaquin Ferrero (jferrero\@gmail.com)>;";
+say "";
+say "use NativeCall;";
+say "";
+
 while (<$FH_API>) {
     chomp;
 
@@ -51,10 +60,27 @@ while (<$FH_API>) {
     	next;
     }
 
+    # líneas superfluas
+    if (/^(?:extern "C"[{]|[}])$/) {
+    	next;
+    }
+
     # línas de defines
     if (my($nombre, $valor) = /^ \s* [#] \s* define \s+ (\S+) \s* (.*)/x) {
-	$valor = 'undef' if not $valor;
+	$valor = "''" if not defined($valor)  or  0 == length $valor ;
 	say parsea_define($nombre, $valor);
+    	next;
+    }
+
+    # líneas de typedef struct de una línea
+    if (m/^typedef struct\s+(?<tipo>\S+)\s+(?<nuevotipo>\w+);(?:\s*$re_comentario)?/) {
+	my $tipo = $+{tipo};
+	my $nuevotipo = $+{nuevotipo};
+	if ('*' eq substr $tipo, -1, 1) {
+	    $tipo = substr $tipo, 0, -1;
+	    $tipo = "Pointer[$tipo]";
+	}
+	say "class $nuevotipo is $tipo is export { }";
     	next;
     }
 
@@ -72,33 +98,54 @@ while (<$FH_API>) {
     }
 
     # líneas de typedef enum
-    if (/^ typedef [ ] enum/x .. /^ (\w+); $/x) {
+    if (/^ typedef [ ] enum/x .. /^ (\w+) ; $/x) {
     	my $nombre = $1;
     	next if /^ (?:typedef [ ] enum|[{}])/x;
 	if (defined $nombre) {
 	    say "enum $nombre (";
 	    my $cnt = 0;
-	    for my $cache (@cache_enum) {
-		$cache =~ m{(?<nombre>\w+)(?:\s*=\s*(?<valor>.+))?\s*,(?<comentario>\s*[/][*].+)\s*[*][/]};
+	    for my $cache (@cache) {
+		$cache =~ m{(?<nombre>\w+)(?:\s*=\s*(?<valor>.+))?\s*(?:,?\s*$re_comentario)?};
 		my $nombre = $+{nombre} // "ERROR: [$cache]";
 		my $valor = $+{valor} // $cnt;
 		$valor = parsea_expr($valor);
 		my $cmt   = $+{comentario} // '';
-		$cmt =~ s{[/][*]}{#};
-		say "$nombre => $valor, $cmt";
+		$cmt = "\t# $cmt" if $cmt;
+		say "\t$nombre => $valor, $cmt";
 		$cnt++;
 	    }
 	    say ");";
-	    @cache_enum = ();
+	    @cache = ();
 	}
 	else {
-	    push @cache_enum, $_;
+	    push @cache, $_;
 	}
 	next;
     }
 
+    # líneas de typedef struct
+    if (/^typedef [ ] struct/x .. /^ (\w+) ; $/x) {
+    	my $nombre = $1;
+    	next if /^ (?:typedef [ ] struct|[{}])/x;
+    	if (defined $nombre) {
+	    say "class $nombre is repr('CStruct') is export  {";
+	    for my $cache (@cache) {
+	    	$cache =~ m{^\s*(?<tipo>\w+)\s+(?<nombre>\w+);(?:\s*$re_comentario)?};
+	    	my($tipo, $nombre) = @+{qw(tipo nombre)};
+		$tipo = $tipos_predefinidos{$tipo} // $tipo;
+		say "\thas $tipo\t\$.$nombre\tis rw;";
+	    }
+	    say "}";
+	    @cache = ();
+	}
+	else {
+	    push @cache, $_;
+	}
+    	next;
+    }
+
     # comentarios de una línea
-    if (my($cmt) = m{^ \s* [/] [*] (.*?) [*] [/]}x) {
+    if (my($cmt) = m{^ \s* $re_comentario}x) {
     	next if $cmt =~ /\@[{}]/;
         say "# $cmt";
     	next;
@@ -114,10 +161,93 @@ while (<$FH_API>) {
     	next;
     }
 
+    # líneas con declaración de funciones
+    if (/^TLNAPI\s+(?<retorno>const \w+ [*]|\w+[*]?\s+)(?<function>\w+) ?\((?<args>.+?)\);/) {
+	#say "[$+{function}]($+{args})=>[$+{retorno}]";
+    	my $retorno = $+{retorno};
+    	my $function = $+{function};
+    	my $args = $+{args};
+    	$retorno =~ s/\s+$//;
+    	my $funcion_ref = [ $function, $args, $retorno ];
+
+	# transformar los argumentos a tipos estándar
+	my $args = $funcion_ref->[1];
+
+	# crear los dos tipos de argumentos
+	# 1. Argumentos solo tipos
+	my @args_solo_tipos;
+	my @args_solo_vars;
+	my @args_tipos_vars;
+	for my $arg (split /, ?/, $args) {
+	    #say $arg;
+	    my($tipo,$var) = $arg =~ /^(void(?:.+)?|.+?)(?: (\w+))?$/;
+	    #if (not defined $var) {
+	    #    $var = $tipo;
+	    #    $var =~ s/TLN_/\$/;
+	    #}
+	    $tipo = cambia_tipos($tipo);
+	    push @args_solo_tipos,  $tipo;
+	    if ($var) {
+		#say "$tipo|$var";
+		push @args_solo_vars,  "\$$var";
+		push @args_tipos_vars, "$tipo \$$var";
+	    }
+	    else {
+		#say "$tipo";
+		push @args_tipos_vars, $tipo;
+	    }
+
+	}
+	my $solo_tipos = join ', ' => @args_solo_tipos;
+	my $solo_vars  = join ', ' => @args_solo_vars;
+	my $tipos_var  = join ', ' => @args_tipos_vars;
+
+	# 2. Argumentos tipos y parámetros
+
+	# valor de retorno
+	my $returns = cambia_tipos($funcion_ref->[2]);
+	my $retorno = '';
+	if ($returns ne 'void') {
+	    $retorno = " returns $returns";
+	}
+
+	# crear nombre de método
+	my $method = $funcion_ref->[0] =~ s/^TLN_//r;
+
+	say "my sub $funcion_ref->[0]($solo_tipos)$retorno is native('Tilengine') { * }";
+	say "method $method($tipos_var) { $funcion_ref->[0]($solo_vars) }";
+	say "";
+
+	# my sub $funcion_ref->[0](int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * };
+	# method Init (int32 $hres, int32 $vres, int $numlayers, int $numsprites, int $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) };
+
+    	next;
+    }
+
     # Si llegamos aquí, nos hemos dejado algo
     say "ERROR: [$_]";
 }
 close $FH_API;
+
+sub cambia_tipos {
+    my $org = shift;
+
+    while (my($tipo, $nuevotipo) = each %tipos_predefinidos) {
+	#if ($tipo =~ /const/) {
+	#    say "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]";
+	#}
+	$org =~ s/^$tipo$/$nuevotipo/g;
+	#if ($tipo =~ /const/) {
+	#    say "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]";
+	#}
+    }
+    #$org =~ s/int/int32/g;
+    #$org =~ s/BYTE/uint8/g;
+    #$org =~ s/DWORD/int32/g;
+    #$org =~ s/const char ?[*]/Pointer/g;
+
+    return $org;
+}
 
 sub parsea_expr ($expr) {
     $expr =~ s/<</+</g;
@@ -148,95 +278,12 @@ sub parsea_define($nombre, $valor) {
 
 __END__
 
-# Leer la API en C++
 my @funciones;
-    if (/^TLNAPI (?<retorno>const char [*]|\w+) ?(?<function>\w+) ?\((?<args>.+?)\);/) {
-	#print;
-    	#say "$+{function}($+{args})=>$+{retorno}\n";
-    	push @funciones, [$+{function}, $+{args}, $+{retorno}];
-    }
-
 my($y, $m, $d) = (localtime)[5, 4, 3];
 $m++;
 
-open my $SALIDA, '>', "Tilengine.new.p6";
-
-print $SALIDA <<EOL;
-use v6;
-unit module Tilengine:ver<$y.$m.$d>:auth<Joaquin Ferrero (jferrero\@gmail.com)>;
-
-use NativeCall;
-
-class Tilengine is export {
-
-EOL
-
-for my $funcion_ref (@funciones) {
-    # transformar los argumentos a tipos estándar
-    my $args = cambia_tipos($funcion_ref->[1]);
-
-    # crear los dos tipos de argumentos
-    # 1. Argumentos solo tipos
-    my @args_solo_tipos;
-    my @args_solo_vars;
-    my @args_tipos_vars;
-    for my $arg (split /, ?/, $args) {
-    	say $arg;
-    	my($tipo,$var) = $arg =~ /^(void(?:.+)?|.+?)(?: (\w+))?$/;
-	#if (not defined $var) {
-	#    $var = $tipo;
-	#    $var =~ s/TLN_/\$/;
-	#}
-	push @args_solo_tipos,  $tipo;
-	if ($var) {
-	    say "$tipo|$var";
-	    push @args_solo_vars,  "\$$var";
-	    push @args_tipos_vars, "$tipo \$$var";
-	}
-	else {
-	    say "$tipo";
-	    push @args_tipos_vars, $tipo;
-	}
-
-    }
-    my $solo_tipos = join ', ' => @args_solo_tipos;
-    my $solo_vars  = join ', ' => @args_solo_vars;
-    my $tipos_var  = join ', ' => @args_tipos_vars;
-
-    # 2. Argumentos tipos y parámetros
-
-    # valor de retorno
-    my $returns = cambia_tipos($funcion_ref->[2]);
-    my $retorno = '';
-    if ($returns ne 'void') {
-	$retorno = " returns $returns";
-    }
-
-    # crear nombre de método
-    my $method = $funcion_ref->[0] =~ s/^TLN_//r;
-
-    print $SALIDA "    my sub $funcion_ref->[0]($solo_tipos)$retorno is native('Tilengine') { * }\n";
-    print $SALIDA "    method $method ($tipos_var) { $funcion_ref->[0]($solo_vars) };\n";
-    print $SALIDA "\n";
-
-    # my sub $funcion_ref->[0](int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * };
-    # method Init (int32 $hres, int32 $vres, int $numlayers, int $numsprites, int $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) };
-}
 
 print $SALIDA "}\n";
 
 close $SALIDA;
-
-sub cambia_tipos {
-    my $org = shift;
-
-    $org =~ s/int/int32/g;
-    $org =~ s/BYTE/uint8/g;
-    $org =~ s/DWORD/int32/g;
-    $org =~ s/const char ?[*]/Pointer/g;
-
-    return $org;
-}
-
-__END__
 
