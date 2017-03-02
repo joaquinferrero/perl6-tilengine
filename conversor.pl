@@ -32,7 +32,9 @@ my %tipos_predefinidos = (
     'const char ?[*]'	=> 'Pointer',
 );
 
-my $re_comentario = qr{ [/][*] \s* (?<comentario>.*) \s* [*][/] }x;
+my $re_nombre     = qr{ (?<nombre>\b \w+ \b) }x;
+my $re_valor      = qr{ \s* = \s* \K (?<valor>[^,]+) }x;
+my $re_comentario = qr{ \s* [/][*] \s* \K (?<comentario>.+) (?>\s* [*][/]) }x;
 
 my $en_cmt = 'E0';
 my %tipos_definidos;
@@ -105,13 +107,13 @@ while (<$FH_API>) {
 	    say "enum $nombre (";
 	    my $cnt = 0;
 	    for my $cache (@cache) {
-		$cache =~ m{(?<nombre>\w+)(?:\s*=\s*(?<valor>.+))?\s*(?:,?\s*$re_comentario)?};
+		$cache =~ m{$re_nombre (?:$re_valor)? (?:,? $re_comentario)?}x;
 		my $nombre = $+{nombre} // "ERROR: [$cache]";
 		my $valor = $+{valor} // $cnt;
 		$valor = parsea_expr($valor);
-		my $cmt   = $+{comentario} // '';
+		my $cmt = $+{comentario} // '';
 		$cmt = "\t# $cmt" if $cmt;
-		say "\t$nombre => $valor, $cmt";
+		say "\t$nombre => $valor,\t\t$cmt";
 		$cnt++;
 	    }
 	    say ");";
@@ -130,10 +132,11 @@ while (<$FH_API>) {
     	if (defined $nombre) {
 	    say "class $nombre is repr('CStruct') is export  {";
 	    for my $cache (@cache) {
-	    	$cache =~ m{^\s*(?<tipo>\w+)\s+(?<nombre>\w+);(?:\s*$re_comentario)?};
-	    	my($tipo, $nombre) = @+{qw(tipo nombre)};
+	    	$cache =~ m{ (?<tipo>\w+) \s+ (?<nombre>\w+) ; (?:$re_comentario)?}x;
+	    	my($tipo, $nombre, $comentario) = @+{qw(tipo nombre comentario)};
 		$tipo = $tipos_predefinidos{$tipo} // $tipo;
-		say "\thas $tipo\t\$.$nombre\tis rw;";
+		$comentario = "\t\t# $+{comentario}" if $+{comentario};
+		say "\thas $tipo\t\$.$nombre\tis rw;$comentario";
 	    }
 	    say "}";
 	    @cache = ();
@@ -171,7 +174,7 @@ while (<$FH_API>) {
     	my $funcion_ref = [ $function, $args, $retorno ];
 
 	# transformar los argumentos a tipos estándar
-	my $args = $funcion_ref->[1];
+	#my $args = $funcion_ref->[1];
 
 	# crear los dos tipos de argumentos
 	# 1. Argumentos solo tipos
@@ -206,7 +209,7 @@ while (<$FH_API>) {
 
 	# valor de retorno
 	my $returns = cambia_tipos($funcion_ref->[2]);
-	my $retorno = '';
+	$retorno = '';
 	if ($returns ne 'void') {
 	    $retorno = " returns $returns";
 	}
