@@ -1,18 +1,32 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -s
 #
 # Conversor de la API desde C++ a Perl 6 (escrito en Perl 5)
 # Joaquín Ferrero
 # 
-# Primera versión: 23/02/2016
+# Primera versión: 23/02/2017
+# Segunda versión: 02/03/2017
 #
 use v5.24;
-use feature 'signatures';
+
+# usar cpp para el preprocesado
+# cpp -C -D_LIB ../../lib/Tilengine.h
+#
+
+__END__
+use feature qw'signatures';
 use strict;
 use warnings;
 no warnings "experimental::signatures";
+use experimental 'switch';
 use autodie;
 
-my %tipos_predefinidos = (
+use Data::Dumper; # XXX
+
+#- Variables -----------------------------------------------------------------------------------------------------------
+
+my %DEFINES;						# Constantes de define (y pasadas por línea de comandos)
+
+my %tipos_predefinidos = (				# tipos predefinidos C++ a NativeCall
     'unsigned char'	=> 'uint8',
     'unsigned short'	=> 'uint16',
     'unsigned int'	=> 'uint32',
@@ -29,8 +43,154 @@ my %tipos_predefinidos = (
     'int64_t'		=> 'int64',
     'float'		=> 'num32',
     'double'		=> 'num64',
-    'const char ?[*]'	=> 'Pointer',
+    'void'		=> '',
 );
+
+
+#- Inicialización ------------------------------------------------------------------------------------------------------
+our $h;							# Mensaje de ayuda
+if ($h) {
+    die "Uso: $0 -define=[NAME[,...]]\n";
+}
+
+our $define;						# Línea -define= con lista de constantes definidas
+if ($define) {
+    map { $DEFINES{$_} = 1 } split /[,]/, $define;
+}
+
+
+#- Patrones ------------------------------------------------------------------------------------------------------------
+
+
+#- Procesado -----------------------------------------------------------------------------------------------------------
+open my $FH, '<:crlf', '../../lib/Tilengine.h';
+my @archivo_original = <$FH>;
+close $FH;
+
+my @archivo_preprocesado = preprocesador(@archivo_original);
+
+say @archivo_preprocesado;
+
+
+#- Subrutinas ----------------------------------------------------------------------------------------------------------
+sub preprocesador(@original) {			# directivas del preprocesador
+    my @procesado;
+
+    while (@original) {
+
+	my $linea = shift @original;
+	chomp $linea;
+
+	# dentro de un 'if'
+	if (my($comando, $resto) = $linea =~ m{^\s*#(\w+)(?:\s+(.+))?}) {
+
+	    given ($comando) {
+		when (/^if(?:n?def)?$/) {
+		    # Probar aquí la condición
+		    if (testear_expresion($comando, $resto)) {
+			# Si es cierta, mandamos preprocesar el resto
+			# ERROR: esto no es correcto: un if se encuentra con un elif o else
+			# solución: rutina para extraer la sección, de forma manual (al estilo del else de abajo).
+			my @resto = preprocesador(@original);
+			push @procesado, @resto;
+			@original = ();			# acabamos
+			next;
+		    }
+		    else {
+			# si no, cambiamos $comando a 'else'
+			# para que entre en el siguiente if
+			$comando = 'else';
+		    	continue;
+		    }
+		}
+		when (/el(?:se|if)/) {
+		    # sacar todas las líneas hasta el próximo endif
+		    my $profundidad_if = 0;
+		    while (@original) {
+			my $linea = shift @original;
+
+			# Contar las profundidades de if...endif internos
+			if ($linea =~ /^\s*#if/) { $profundidad_if++ }
+			elsif ($linea =~ /^\s*#endif/) { last if not $profundidad_if-- }
+		    }
+		    next;
+		}
+		when ('endif') {
+		    next;
+		}
+		when ('define') {
+		    my($nombre, $valor) = split " ", $resto, 2;
+		    $DEFINES{$nombre} = $valor // '';
+		    next;
+		}
+	    }
+	}
+
+	push @procesado, "$linea\n";
+    }
+
+    return @procesado;
+}
+
+sub testear_expresion ($comando, $expresion) {
+    # tipos de comandos:
+    # * if : la expresión es cierta
+    # * ifdef : el identificador está definido
+    # * ifndef: el identificador no está definido
+    #
+    # tipos de expresiones de defines
+    # * un identificador: se prueba si está definido
+    # * 'defined'+identificador: se prueba si está definido
+    given ($comando) {
+    	when ('ifndef') {
+    	    return not testear_expresion('ifdef', $expresion);
+	}
+	when ('if') {
+	    if ($expresion =~ /^\s*defined\s+(.+)/) {
+	    	return testear_expresion('ifdef', $1);
+	    }
+	    else {
+		say "ERROR: expresión desconocida: [$comando][$expresion]";
+		return -1;
+	    }
+	}
+	when ('ifdef') {
+	    # Probar la definición
+	    given ($expresion) {
+		when (/^\(?(\w+)\)?$/) {		# es un simple identificador
+		    return defined $DEFINES{$1};
+		}
+	    	default {
+		    say "ERROR: expresión desconocida: [$comando][$expresion]";
+		    return -1;
+		}
+	    }
+	}
+	default {
+	    say "ERROR: expresión desconocida: [$comando][$expresion]";
+	    return -1;
+	}
+    }
+}
+__END__
+
+	# Comentario de una sola línea
+	if (my($spc, $cmnt) = $linea =~ m{(\s*) [/][*] (.+) \s* [*][/] \s* $}x) {
+	    next if $cmnt =~ /[@][{}]/;				# caso especial
+	    $cmnt =~ s{^!<}{};					# caso especial
+	    $linea = "$spc#$cmnt";
+	    push @procesado, $linea;
+	    next;
+	}
+
+	# Comentarios de varias líneas
+	if (my $comentario = $linea =~ m{^ \s* [/][*]}x .. $linea =~ m{ [*][/] \s* $}x) {
+	    $linea =~ s{\s*[*][/]$}{};				# fin de comentario
+	    $linea =~ s{^\s*[*]\s*}{};				# quitar '*' iniciales
+	    $linea =~ s{^\s*[/][*][*]?}{};			# quitar '/*?'
+	    push @procesado, "$comentario # $linea";
+	    next;
+	}
 
 my $re_nombre     = qr{ (?<nombre>\b \w+ \b) }x;
 my $re_valor      = qr{ \s* = \s* \K (?<valor>[^,]+) }x;
@@ -40,7 +200,10 @@ my $en_cmt = 'E0';
 my %tipos_definidos;
 my @cache;
 
-open my $FH_API, '<:crlf', '../../lib/Tilengine.h';
+my %defines;
+my %constants;
+my %structs;		# lista de estructuras conocidas
+
 
 say "use v6;";
 say "unit class Tilengine:ver<117.2.27>:auth<Joaquin Ferrero (jferrero\@gmail.com)>;";
@@ -70,7 +233,13 @@ while (<$FH_API>) {
     # línas de defines
     if (my($nombre, $valor) = /^ \s* [#] \s* define \s+ (\S+) \s* (.*)/x) {
 	$valor = "''" if not defined($valor)  or  0 == length $valor ;
-	say parsea_define($nombre, $valor);
+	if (exists $tipos_predefinidos{$valor}) {
+	    say "#" . parsea_define($nombre, $valor);
+	}
+	else {
+	    $tipos_predefinidos{$valor} = $nombre;
+	    say parsea_define($nombre, $valor);
+	}
     	next;
     }
 
@@ -78,10 +247,19 @@ while (<$FH_API>) {
     if (m/^typedef struct\s+(?<tipo>\S+)\s+(?<nuevotipo>\w+);(?:\s*$re_comentario)?/) {
 	my $tipo = $+{tipo};
 	my $nuevotipo = $+{nuevotipo};
+	my $es_puntero;
 	if ('*' eq substr $tipo, -1, 1) {
 	    $tipo = substr $tipo, 0, -1;
-	    $tipo = "Pointer[$tipo]";
+	    $es_puntero = 1;
 	}
+	if (not $tipos_predefinidos{$tipo}) {
+	    warn "TIPO NO DEFINIDO: $tipo. Se cambia a Pointer";
+	    $tipo = 'Pointer';
+	    $tipos_predefinidos{$nuevotipo} = $tipo;
+	}
+	#if ($es_puntero) {
+	#    $tipo = "Pointer[$tipo]";
+	#}
 	say "class $nuevotipo is $tipo is export { }";
     	next;
     }
@@ -94,8 +272,13 @@ while (<$FH_API>) {
 	#say "TYPEDEF: $tipo $nuevotipo $cmt";
 	# cambiar los tipos
 	$tipo = $tipos_predefinidos{$tipo} // $tipo;
-	say "constant $nuevotipo = $tipo;$cmt";
+	$nuevotipo = "constant $nuevotipo";
+	if ($constants{$nuevotipo} or $nuevotipo =~ /(?:bool|true|false)/) {
+	    $nuevotipo = "#$nuevotipo";
+	}
+	say "$nuevotipo = $tipo;$cmt";
 	$tipos_definidos{$nuevotipo} = $tipo;
+	$constants{$nuevotipo} = $tipo;
 	next;
     }
 
@@ -130,6 +313,7 @@ while (<$FH_API>) {
     	my $nombre = $1;
     	next if /^ (?:typedef [ ] struct|[{}])/x;
     	if (defined $nombre) {
+    	    $structs{$nombre} = 1;
 	    say "class $nombre is repr('CStruct') is export  {";
 	    for my $cache (@cache) {
 	    	$cache =~ m{ (?<tipo>\w+) \s+ (?<nombre>\w+) ; (?:$re_comentario)?}x;
@@ -210,7 +394,7 @@ while (<$FH_API>) {
 	# valor de retorno
 	my $returns = cambia_tipos($funcion_ref->[2]);
 	$retorno = '';
-	if ($returns ne 'void') {
+	if ($returns and $returns ne 'void') {
 	    $retorno = " returns $returns";
 	}
 
@@ -230,16 +414,16 @@ while (<$FH_API>) {
     # Si llegamos aquí, nos hemos dejado algo
     say "ERROR: [$_]";
 }
-close $FH_API;
 
 sub cambia_tipos {
     my $org = shift;
 
     while (my($tipo, $nuevotipo) = each %tipos_predefinidos) {
-	#if ($tipo =~ /const/) {
-	#    say "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]";
-	#}
-	$org =~ s/^$tipo$/$nuevotipo/g;
+	if ($tipo =~ /BYTE/) {
+	    warn "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]\n";
+	}
+	$org =~ s/\b$tipo[*]\b/Pointer/g;
+	$org =~ s/\b$tipo\b/$nuevotipo/g;
 	#if ($tipo =~ /const/) {
 	#    say "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]";
 	#}
@@ -253,6 +437,7 @@ sub cambia_tipos {
 }
 
 sub parsea_expr ($expr) {
+    $expr =~ s/>>/+>/g;
     $expr =~ s/<</+</g;
     $expr =~ s/[|]/+|/g;
     return $expr;
@@ -269,12 +454,15 @@ sub parsea_define($nombre, $valor) {
     }
     $valor = parsea_expr($valor);
     if ($define_funcion) {
+    	$valor = cambia_tipos($valor);
 	$valor =~ s/\b$define_funcion\b/\$$define_funcion/g;
 	$valor .= " }";
     }
     else {
     	$valor .= ';';
     }
+
+    $nombre = "#$nombre" if $nombre =~ /\b (?:bool|true|false) \b/x;
 
     return "$nombre $valor";
 }
