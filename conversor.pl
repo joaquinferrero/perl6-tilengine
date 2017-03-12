@@ -44,7 +44,11 @@ my %tipos_predefinidos = (				# tipos predefinidos C++ a NativeCall
     'int64_t'		=> 'int64',
     'float'		=> 'num32',
     'double'		=> 'num64',
+    'Str'		=> 'Str',
     'void'		=> '',
+    'uint8'		=> 'uint8',
+    'Tile'		=> 'TLN_Tile',
+    'TLN_Tile'		=> 'Tile',
 );
 
 #- Patrones ------------------------------------------------------------------------------------------------------------
@@ -65,12 +69,14 @@ pone_punteros();					# cambia 'struct *' a Pointer y 'const char *' a Str
 funciones();						# líneas con declaración de funciones
 
 # preámbulo
+my($y, $m, $d, $h, $mi) = (localtime)[5, 4, 3, 2, 1];
+$m++;$y+=1900;
 my $resultado = '';
-$resultado .= "use v6;";
-$resultado .= "unit class Tilengine:ver<2017.03.06>:auth<Joaquin Ferrero (jferrero\@gmail.com)>;";
-$resultado .= "";
-$resultado .= "use NativeCall;";
-$resultado .= "";
+$resultado .= "use v6;\n";
+$resultado .= "unit class Tilengine:ver<$y.$m.$d.$h.$mi>:auth<Joaquin Ferrero (jferrero\@gmail.com)>;\n";
+$resultado .= "\n";
+$resultado .= "use NativeCall;\n";
+$resultado .= "\n";
 $resultado .= $TILENGINE_H;
 $TILENGINE_H = $resultado;
 
@@ -163,7 +169,8 @@ sub typedef_enum {					# líneas typedef enum de una sola línea
 	    my $nombre_enum = $+{nombre_enum} // '';
 	    next if $linea =~ /^(?:typedef enum|[{}])/;	# primera línea
 	    if ($nombre_enum) {
-		$resultado .= "my Int enum $nombre_enum (\n";
+		$resultado .= "enum $nombre_enum is export (\n";
+		#$resultado .= "class $nombre_enum is export (\n";
 		my $cnt = 0;
 		for my $cache (@cache) {
 		    $cache =~ m{^ \s* $re_nombre (?:$re_valor)? [,]? (?:\s* $re_comentario)? $}x;
@@ -172,11 +179,13 @@ sub typedef_enum {					# líneas typedef enum de una sola línea
 		    $valor = parsea_expr($valor);
 		    my $cmt = $+{comentario} // '';
 		    $linea = sprintf "    %-25s => %-15s  %s", $variable, "$valor,", $cmt;
+		    #$linea = sprintf "    %-25s => %-15s  %s", "method $variable", "{ $valor }", $cmt;
 		    $resultado .= "$linea\n";
 		    $cnt++;
 		}
 		$resultado .= ");\n";
 		@cache = ();
+		$tipos_predefinidos{$nombre_enum} = 'int32';
 		next;
 	    }
 	    else {
@@ -252,7 +261,7 @@ sub typedef_struct_linea {				# líneas typedef struct de una sola línea
 		$es_puntero = 1;
 	    }
 	    if (not $tipos_predefinidos{$tipo}) {
-		warn "TIPO NO DEFINIDO: $tipo. Se cambia a Pointer";
+		warn "TIPO NO DEFINIDO: $tipo. Se cambia $nuevotipo a Pointer";
 		$tipo = 'Pointer';
 		$tipos_predefinidos{$nuevotipo} = $tipo;
 	    }
@@ -260,7 +269,7 @@ sub typedef_struct_linea {				# líneas typedef struct de una sola línea
 	    #    $tipo = "Pointer[$tipo]";
 	    #}
 	    $linea = sprintf "%-50s%s",
-			(($tipo eq 'Pointer') ? "class $nuevotipo is repr('CPointer') { }"
+			(($tipo eq 'Pointer') ? sprintf("class %-16s is repr('CPointer') { }",$nuevotipo)
 					      : "class $nuevotipo is $tipo is export { }"),
 			$comentario
 		   ;
@@ -315,33 +324,89 @@ sub funciones {						# líneas con declaración de funciones
 
     for my $linea (split /\n/, $TILENGINE_H) {
 
-	$resultado .= "$linea\n";
+	if ($linea =~ /^\s*(?<retorno>.+)\s+(?<funcion>[*]?\w+)\s+\((?<args>.+?)\);/) {
+	    $resultado .= "#$linea\n";
+	    my($retorno, $funcion, $args) = @+{qw(retorno funcion args)};
+	    #say "[$funcion($args) --> $retorno";
+
+	    my($solo_tipos, $solo_vars, $tipos_var) = procesa_args($args);
+
+	    # valor de retorno
+	    my $returns = cambia_tipos($retorno);
+	    $retorno = '';
+	    if ($returns =~ /[*]$/) {
+		$returns = 'Pointer';
+	    }
+	    if ($returns and $returns eq 'TLN_Error') {
+	    	$returns = 'int32';
+	    }
+	    if ($returns and $returns ne 'void') {
+		$retorno = "returns $returns";
+	    }
+
+	    # crear nombre de método
+	    my $method = $funcion =~ s/^TLN_//r;
+
+	    $resultado .= "my sub $funcion($solo_tipos) $retorno is native('Tilengine') { * }\n";
+	    $resultado .= "method $method($tipos_var) { $funcion($solo_vars) }\n";
+	    $resultado .= "\n";
+
+
+	}
+        else {
+	   $resultado .= "$linea\n";
+	}
     }
 
     $TILENGINE_H = $resultado;
 }
+sub procesa_args ($args) {
+
+    my @args_solo_tipos;
+    my @args_solo_vars;
+    my @args_tipos_vars;
+
+    for my $arg (split /, ?/, $args) {
+
+	my($orgtipo,$var) = $arg =~ /^(void(?:.+)?|.+?)(?: [*]?(\w+))?$/;
+	$var //= '';
+	#say "[$orgtipo][$var]";
+
+	if ($orgtipo eq 'void (*callback)(int)') {
+	    push @args_solo_tipos, '&callback (int32)';
+	    push @args_solo_vars,  '$callback';
+	    push @args_tipos_vars, 'Pointer $callback';
+	    last;
+	}
+	else {
+	    my $tipo = cambia_tipos($orgtipo);
+	    if (not exists $tipos_predefinidos{$orgtipo} ) {
+		$tipo = 'Pointer';
+	    }
+	    if (not $var) {
+		$var = $tipo;
+		$var =~ s/TLN_//;
+		my $es_puntero = $tipo =~ s/\s*[*]$//;
+		$tipo = "$tipo is rw" if $es_puntero;
+	    }
+	    $var = "\$$var" if $var;
+
+	    push @args_solo_tipos,  $tipo;
+	    push @args_solo_vars,  $var;
+	    push @args_tipos_vars, "$tipo $var";
+	}
+    }
+
+    return ( join(', ' => @args_solo_tipos), join(', ' => @args_solo_vars), join(', ' => @args_tipos_vars) );
+}
 sub cambia_tipos {
     my $org = shift;
 
-    #say "[$org]" if $org =~ /callback/;
-
-    $org =~ s/void \(\*callback\)\(int\)/&callback (int32)/;
     $org =~ s/const char\s*[*]/Str/g;
-    #$org =~ s/[*]$/ is rw/g;
 
     while (my($tipo, $nuevotipo) = each %tipos_predefinidos) {
-	#if ($org =~ /BYTE/) {
-	#    warn "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]\n";
-	#}
-	#if ($org =~ /BYTE/) {
-	#    warn "Tipo: [$tipo] Nuevo: [$nuevotipo] Org: [$org]";
-	#}
 	$org =~ s/\b$tipo\b/$nuevotipo/g;
     }
-    #$org =~ s/int/int32/g;
-    #$org =~ s/BYTE/uint8/g;
-    #$org =~ s/DWORD/int32/g;
-    #$org =~ s/const char ?[*]/Pointer/g;
 
     return $org;
 }
@@ -349,8 +414,6 @@ sub cambia_tipos {
 
 __END__
 	#if ($linea =~ /^\s+(?<retorno>const \w+ [*]|\w+[*]?\s+)(?<function>\w+) ?\((?<args>.+?)\);/) {
-	if ($linea =~ /^\s+(?<retorno>.+)\s+(?<function>[*]?\w+)\s+\((?<args>.+?)\);/) {
-	    my($retorno, $function, $args) = @+{qw(retorno function args)};
 	    if ($function =~ s/^[*]//) {
 		$retorno .= " *";
 	    }
@@ -360,17 +423,6 @@ __END__
 
 	    ## crear los dos tipos de argumentos
 	    ## 1. Argumentos solo tipos
-	    my @args_solo_tipos;
-	    my @args_solo_vars;
-	    my @args_tipos_vars;
-	    for my $arg (split /, ?/, $args) {
-		#say $arg;
-		my($orgtipo,$var) = $arg =~ /^(void(?:.+)?|.+?)(?: [*]?(\w+))?$/;
-		if ($orgtipo eq 'void (*callback)(int)') {
-		    push @args_solo_vars, '$callback';
-		    push @args_solo_tipos, '&callback (int32)';
-		    push @args_tipos_vars, 'Pointer $callback';
-		}
 		else {
 		    if ($var and $var =~ s/^[*]//) {
 			$orgtipo .= " *";
@@ -380,70 +432,6 @@ __END__
 			($var) = $tipo =~ m/(\w+)/;
 		    }
 		    
-		    my $es_puntero = $tipo =~ s/\s*[*]$//;
-		    if (not exists $tipos_predefinidos{$orgtipo} ) { # and not exists $constants{$orgtipo}) {
-			push @args_solo_tipos, 'Pointer';
-		    }
-		    else {
-			push @args_solo_tipos,  $tipo;
-		    }
-		    
-		    if (not $var) {
-		        $var = $tipo;
-		        $var =~ s/TLN_/\$/;
-			$tipo = "$tipo is rw" if $es_puntero;
-		    }
-		    push @args_solo_vars,  "\$$var";
-		    push @args_tipos_vars, "$tipo \$$var";
 		}
-	    }
 
-	    my $solo_tipos = join ', ' => @args_solo_tipos;
-	    my $solo_vars  = join ', ' => @args_solo_vars;
-	    my $tipos_var  = join ', ' => @args_tipos_vars;
-
-	    ## 2. Argumentos tipos y parámetros
-
-	    # valor de retorno
-	    my $returns = cambia_tipos($retorno);
-	    $retorno = '';
-	    if ($returns =~ /[*]$/) {
-		$returns = 'Pointer';
-	    }
-	    if ($returns and $returns ne 'void') {
-		$retorno = " returns $returns";
-	    }
-
-	    # crear nombre de método
-	    my $method = $function =~ s/^TLN_//r;
-
-	    $resultado .= "my sub $function($solo_tipos)$retorno is native('Tilengine') { * }\n";
-	    $resultado .= "method $method($tipos_var) { $function($solo_vars) }\n";
-	    $resultado .= "\n";
-
-	    ## my sub $funcion_ref->[0](int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * };
-	    ## method Init (int32 $hres, int32 $vres, int $numlayers, int $numsprites, int $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) };
-
-	    next;
-	}
-
-
-#- Variables -----------------------------------------------------------------------------------------------------------
-my @cache;
-my %structs;
-my %constants;
-
-#- Proceso -------------------------------------------------------------------------------------------------------------
-__END__
-use Data::Dumper; # XXX
-
-#- Inicialización ------------------------------------------------------------------------------------------------------
-my $en_cmt = 'E0';
-my %tipos_definidos;
-
-my %constants;
-
-my @funciones;
-my($y, $m, $d) = (localtime)[5, 4, 3];
-$m++;
 
