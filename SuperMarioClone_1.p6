@@ -7,8 +7,8 @@
 # imports
 use NativeCall;
 
-use lib '../bindings/perl';
-use Tilengine0;
+use lib '../bindings/perl6';
+use Tilengine2;
 
 my $tln = Tilengine.new();
 
@@ -55,7 +55,7 @@ sub FreeLayer (Int $index) {
 # Tiles
 my  $tile = Tile.new;
 $tile.index = 56;
-$tile.flags = $tln.FLAG_NONE;
+$tile.flags = FLAG_NONE;
 
 my Pointer $sp;
 my Pointer $seq_coin;
@@ -70,8 +70,8 @@ my Real $velocidad = 0.0;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER,1,3);
-#$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
-$tln.CreateWindow("", $tln.CWF_S3);
+$tln.CreateWindow("overlay.bmp", CWF_VSYNC);
+#$tln.CreateWindow("", CWF_S3);
 $tln.SetBGColor(0, 96, 184);
 $tln.SetLoadPath("assets");
 
@@ -85,7 +85,7 @@ $tln.SetLayerPosition(LAYER_BACKGROUND, $fore_x,80);
 # setup sprite
 $spriteset = $tln.LoadSpriteset("smw_sprite");
 #$tln.SetSpriteSet(0, $spriteset);
-$tln.ConfigSprite(0, $spriteset, $tln.FLAG_NONE);
+$tln.ConfigSprite(0, $spriteset, FLAG_NONE);
 $tln.SetSpritePicture(0, 0);
 $tln.SetSpritePosition(0, $player_x, $player_y.Int);
 
@@ -125,7 +125,7 @@ while $tln.ProcessWindow() {
     #if abs($fore_x) > 1312 { $fore_x = 0 }
 
     # process user input
-    $pulsado = $tln.GetInput($tln.INPUT_UP) ?? True !! False;
+    $pulsado = $tln.GetInput(INPUT_UP) ?? True !! False;
 
     if $pulsado {
     	if not $hay_salto {
@@ -151,7 +151,7 @@ while $tln.ProcessWindow() {
 
     caer() if $hay_salto;
 
-    if $tln.GetInput($tln.INPUT_RIGHT) {
+    if $tln.GetInput(INPUT_RIGHT) {
 	$player_x += 2;
 	if $sentido == 1 {
 	    $tln.ConfigSprite(0, $spriteset, 0);
@@ -161,10 +161,10 @@ while $tln.ProcessWindow() {
 	    $tln.SetSpriteAnimation(2, 0, $seq_walking, 0);
 	}
     }
-    elsif $tln.GetInput($tln.INPUT_LEFT ) {
+    elsif $tln.GetInput(INPUT_LEFT ) {
 	$player_x -= 2;
 	if $sentido == 0 {
-	    $tln.ConfigSprite(0, $spriteset, $tln.FLAG_FLIPX);
+	    $tln.ConfigSprite(0, $spriteset, FLAG_FLIPX);
 	    $sentido = 1;
 	}
 	if not $hay_salto and not $tln.GetAnimationState(2) {
@@ -187,12 +187,14 @@ while $tln.ProcessWindow() {
 
 
 
-    my $x_tile = ($player_x + $fore_x) ÷ 16;
-    my $y_tile = ($player_y          ) ÷ 16 + 5;
-    $tln.GetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, $y_tile.Int, $x_tile.Int, $tile);
-    $tln.SetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, 5, $x_tile.Int, $tile);
+    my Int $x_tile = Int(($player_x + $fore_x) ÷ 16);
+    my Int $y_tile = Int(($player_y          ) ÷ 16 + 5);
+    $tln.GetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, $y_tile, $x_tile, $tile);
+    $tln.SetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, 5, $x_tile, $tile);
 
     $tln.DrawFrame($frame++);
+
+    #sleep 0.01;
 }
 
 # gravedad
