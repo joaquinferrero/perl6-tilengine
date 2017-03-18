@@ -64,8 +64,8 @@ my Pointer $seq_walking;
 my Pointer $spriteset;
 my Int $frame    = 0;
 my Int $player_x = 90;
-my Real $player_y = 160.0;
-my Real $base     = 160.0;
+my Real $base     = 200.0;
+my Real $player_y = $base;
 my Real $velocidad = 0.0;
 
 # basic setup
@@ -129,7 +129,7 @@ while $tln.ProcessWindow() {
 
     if $pulsado {
     	if not $hay_salto {
-	    if $player_y == $base {
+	    if $player_y >= $base or $tile.index == 12 {
 		$tln.DisableAnimation(2);
 		$tln.SetSpritePicture(0, 7);
 		$velocidad = -5;
@@ -200,7 +200,7 @@ while $tln.ProcessWindow() {
 # gravedad
 sub caer {
 
-    if $velocidad == 0 and $player_y == $base {
+    if $velocidad == 0 and ($player_y >= $base or $tile.index == 12) {
     	$hay_salto = False;
     	return;
     }
@@ -210,15 +210,20 @@ sub caer {
     $player_x += $sentido == 0 ?? 1 !! -1;
 
     if $velocidad > 0 {
-    	$tln.SetSpritePicture(0, 8);
+    	$tln.SetSpritePicture(0, 8);	# cayendo
+
+	if $player_y > $base or $tile.index == 12 {
+	    if $player_y > $base { $player_y = $base; }
+
+	    $velocidad = -$velocidad ÷ 4;	# rebote
+	    if abs($velocidad) < 2 { $velocidad = 0 }
+	    $tln.SetSpritePicture(0, 10);
+	    return;
+	}
+
     }
 
-    if $player_y > $base {
-	$player_y = $base;
-	$velocidad = -$velocidad ÷ 4;
-    	$tln.SetSpritePicture(0, 10);
-	return;
-    }
+    #say $tile.index;
 
     if abs($velocidad) < 2 and abs($player_y - $base) < 2 {
 	    $player_y = $base;
