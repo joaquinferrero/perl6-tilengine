@@ -7,8 +7,8 @@
 #
 
 # imports
-use lib '../bindings/perl';
-use Tilengine0;
+use lib '../bindings/perl6';
+use Tilengine3;
 
 my $tln = Tilengine.new();
 
@@ -41,7 +41,7 @@ sub SetupLayer ($nlayer, $name) {
 
 # setup engine
 $tln.Init(WIDTH, HEIGHT, 2,0,0);
-$tln.CreateWindow("overlay3.bmp", $tln.CWF_VSYNC);
+$tln.CreateWindow("overlay3.bmp", CWF_VSYNC);
 $tln.SetBGColor(34,136,170);
 
 # setup layers
@@ -51,14 +51,14 @@ SetupLayer(LAYER_BACKGROUND, "rolo");
 # main loop
 while $tln.ProcessWindow() {
 	# user input
-	if $tln.GetInput($tln.INPUT_LEFT)			{ $xpos  -= 1 }
-	if $tln.GetInput($tln.INPUT_RIGHT)			{ $xpos  += 1 }
-	if $tln.GetInput($tln.INPUT_UP) and $ypos > 0		{ $ypos  -= 1 }
-	if $tln.GetInput($tln.INPUT_DOWN)			{ $ypos  += 1 }
-	if $tln.GetInput($tln.INPUT_A)  and $scale < MAX_SCALE	{ $scale += 1 }
-	if $tln.GetInput($tln.INPUT_B)  and $scale > MIN_SCALE	{ $scale -= 1 }
-	if $tln.GetInput($tln.INPUT_C)  and $alpha < 255	{ $alpha += 2 }
-	if $tln.GetInput($tln.INPUT_D)  and $alpha > 1		{ $alpha -= 2 }
+	if $tln.GetInput(INPUT_LEFT)				{ $xpos  -= 1 }
+	if $tln.GetInput(INPUT_RIGHT)				{ $xpos  += 1 }
+	if $tln.GetInput(INPUT_UP) and $ypos > 0		{ $ypos  -= 1 }
+	if $tln.GetInput(INPUT_DOWN)				{ $ypos  += 1 }
+	if $tln.GetInput(INPUT_A)  and $scale < MAX_SCALE	{ $scale += 1 }
+	if $tln.GetInput(INPUT_B)  and $scale > MIN_SCALE	{ $scale -= 1 }
+	if $tln.GetInput(INPUT_C)  and $alpha < 255		{ $alpha += 2 }
+	if $tln.GetInput(INPUT_D)  and $alpha > 1		{ $alpha -= 2 }
 
 	# calculate scale factor from fixed point base
 	my Num $fgscale = ($scale/100.0).Num;
@@ -77,10 +77,10 @@ while $tln.ProcessWindow() {
 
 	# update transparency
 	if $alpha < 255 {
-	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, $tln.BLEND_MIX, $alpha);
+	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_MIX, $alpha);
 	}
 	else {
-	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, $tln.BLEND_NONE, 0);
+	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_NONE, 0);
 	}
 	
 	# render to the window
