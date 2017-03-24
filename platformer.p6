@@ -5,8 +5,8 @@
 # 
 
 # imports
-use lib '../bindings/perl';
-use Tilengine;
+use lib '../bindings/perl6';
+use Tilengine3;
 
 my $tln = Tilengine.new();
 
@@ -60,7 +60,7 @@ sub raster_effect ($line) {
 # initialise
 $tln.Init(400,240,2,80,1);
 #$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
-$tln.CreateWindow("", $tln.CWF_S1);
+$tln.CreateWindow("", $tln::CWF_S1);
 
 # setup layers
 SetupLayer(LAYER_FOREGROUND, "Sonic_md_fg1");

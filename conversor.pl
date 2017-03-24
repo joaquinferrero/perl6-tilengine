@@ -11,8 +11,8 @@
 use v5.14;
 use strict;
 use warnings;
-use feature qw'signatures';
-no warnings "experimental::signatures";
+#use feature qw'signatures';
+#no warnings "experimental::signatures";
 use autodie;
 use FindBin qw($Bin);
 
@@ -280,7 +280,8 @@ sub typedef_struct_linea {				# líneas typedef struct de una sola línea
 
     $TILENGINE_H = $resultado;
 }
-sub parsea_expr ($expr) {
+sub parsea_expr {
+    my($expr) = @_;
     $expr =~ s/>>/+>/g;
     $expr =~ s/<</+</g;
     $expr =~ s/[|]/+|/g;
@@ -360,8 +361,8 @@ sub funciones {						# líneas con declaración de funciones
 
     $TILENGINE_H = $resultado;
 }
-sub procesa_args ($args) {
-
+sub procesa_args {
+    my($args) = @_;
     my @args_solo_tipos;
     my @args_solo_vars;
     my @args_tipos_vars;
