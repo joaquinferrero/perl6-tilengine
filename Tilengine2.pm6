@@ -243,7 +243,7 @@ method SetBGPalette(Pointer $palette) { TLN_SetBGPalette($palette) }
 
 # void TLN_SetRasterCallback (void (*callback)(int));
 my sub TLN_SetRasterCallback(&callback (int32))  is native('Tilengine') { * }
-method SetRasterCallback(Pointer $callback) { TLN_SetRasterCallback($callback) }
+method SetRasterCallback(Sub $callback) { TLN_SetRasterCallback($callback) }
 
 # void TLN_SetRenderTarget (Pointer data, int pitch);
 my sub TLN_SetRenderTarget(Pointer, int32)  is native('Tilengine') { * }
