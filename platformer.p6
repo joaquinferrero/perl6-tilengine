@@ -6,9 +6,9 @@
 
 # imports
 use lib '../bindings/perl6';
-use Tilengine3;
+use Tilengine;
 
-my $tln = Tilengine.new();
+my $tln = Tilengine.new;
 
 # constants
 constant LAYER_FOREGROUND = 0;
@@ -59,8 +59,7 @@ sub raster_effect ($line) {
 
 # initialise
 $tln.Init(400,240,2,80,1);
-#$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
-$tln.CreateWindow("", $tln::CWF_S1);
+$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
 
 # setup layers
 SetupLayer(LAYER_FOREGROUND, "Sonic_md_fg1");
@@ -77,34 +76,34 @@ while $tln.ProcessWindow() {
 
     # process user input
     if $tln.GetInput($tln.INPUT_RIGHT) {
-	$speed += 0.06;
-	if $speed > 3.0 {
-	    $speed = 3.0;
+	$speed += 0.02;
+	if $speed > 1.0 {
+	    $speed = 1.0;
 	}
     }
     elsif $speed > 0.0 {
-	$speed -= 0.06;
+	$speed -= 0.02;
 	if $speed < 0.0 {
 	    $speed = 0.0;
 	}
     }
 
     if $tln.GetInput($tln.INPUT_LEFT) {
-	$speed -= 0.06;
-	if $speed < -3.0 {
-	    $speed = -3.0;
+	$speed -= 0.02;
+	if $speed < -1.0 {
+	    $speed = -1.0;
 	}
     }
     elsif $speed < 0.0 {
-	$speed += 0.06;
+	$speed += 0.02;
 	if $speed > 0.0 {
 	    $speed = 0.0;
 	}
     }
 
     # scroll
-    $basepos                += $speed;
-    my Real $pos_foreground  = $basepos * 3;
+    $basepos += $speed;
+    my Real $pos_foreground = $basepos * 3;
     $tln.SetLayerPosition(LAYER_FOREGROUND, $pos_foreground.Int, 0);
 
     @pos_background[0] = $basepos * 0.562;
