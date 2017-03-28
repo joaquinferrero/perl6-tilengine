@@ -1,18 +1,7 @@
 use v6;
-unit module Game::Engine::Tilengine:ver<2017.3.23.21.25>:auth<Joaquin Ferrero (jferrero@gmail.com)>;
+unit class Tilengine:ver<2017.3.23.21.25>:auth<Joaquin Ferrero (jferrero@gmail.com)>;
 
 use NativeCall;
-
-### CreateWindow flags. Can be none or a combination of the following:
-#enum TLN_WindowFlags is export (
-#    CWF_FULLSCREEN => 1+<0,    # create a fullscreen window
-#    CWF_VSYNC      => 1+<1,    # sync frame updates with vertical retrace
-#    CWF_S1         => 1+<2,    # create a window the same size as the framebuffer
-#    CWF_S2         => 2+<2,    # create a window 2x the size the framebuffer
-#    CWF_S3         => 3+<2,    # create a window 3x the size the framebuffer
-#    CWF_S4         => 4+<2,    # create a window 4x the size the framebuffer
-#    CWF_S5         => 5+<2,    # create a window 5x the size the framebuffer
-#);
 
 # Tile description
 class Tile is repr('CStruct') is export  {
@@ -28,174 +17,176 @@ class TLN_Sequence     is repr('CPointer') is export { }    # Opaque sequence re
 class TLN_SequencePack is repr('CPointer') is export { }    # Opaque sequence pack reference
 class TLN_Palette      is repr('CPointer') is export { }    # Opaque palette reference
 
-# TODO constantes: como hacer que estén dentro del espacio de nombres de la clase
+## CreateWindow flags. Can be none or a combination of the following:
+my Int enum TLN_WindowFlags is export (
+    CWF_FULLSCREEN => 1+<0,    # create a fullscreen window
+    CWF_VSYNC      => 1+<1,    # sync frame updates with vertical retrace
+    CWF_S1         => 1+<2,    # create a window the same size as the framebuffer
+    CWF_S2         => 2+<2,    # create a window 2x the size the framebuffer
+    CWF_S3         => 3+<2,    # create a window 3x the size the framebuffer
+    CWF_S4         => 4+<2,    # create a window 4x the size the framebuffer
+    CWF_S5         => 5+<2,    # create a window 5x the size the framebuffer
+);
 
-class Tilengine is export {
-    # CreateWindow flags. Can be none or a combination of the following:
-    method CWF_FULLSCREEN { 1+<0 }	# create a fullscreen window
-    method CWF_VSYNC      { 1+<1 }	# sync frame updates with vertical retrace
-    method CWF_S1         { 1+<2 }	# create a window the same size as the framebuffer
-    method CWF_S2         { 2+<2 }	# create a window 2x the size the framebuffer
-    method CWF_S3         { 3+<2 }	# create a window 3x the size the framebuffer
-    method CWF_S4         { 4+<2 }	# create a window 4x the size the framebuffer
-    method CWF_S5         { 5+<2 }	# create a window 5x the size the framebuffer
+# tile/sprite flags. Can be none or a combination of the following:
+my Int enum TLN_Flags is export (
+    FLAG_NONE      => 0      ,	# no flags
+    FLAG_FLIPX     => 1+<(15),	# horizontal flip
+    FLAG_FLIPY     => 1+<(14),	# vertical flip
+    FLAG_ROTATE    => 1+<(13),	# row/column flip (unsupported, Tiled compatibility)
+    FLAG_PRIORITY  => 1+<(12),	# tile goes in front of sprite layer
+);
 
-    # tile/sprite flags. Can be none or a combination of the following:
-    method FLAG_NONE      { 0       }	# no flags
-    method FLAG_FLIPX     { 1+<(15) }	# horizontal flip
-    method FLAG_FLIPY     { 1+<(14) }	# vertical flip
-    method FLAG_ROTATE    { 1+<(13) }	# row/column flip (unsupported, Tiled compatibility)
-    method FLAG_PRIORITY  { 1+<(12) }	# tile goes in front of sprite layer
+# Standard inputs. Must be one of these and are mutually exclusive:
+my Int enum TLN_Input is export (
+    INPUT_NONE     => 0,	# no input
+    INPUT_UP       => 1,	# up direction
+    INPUT_DOWN     => 2,	# down direction
+    INPUT_LEFT     => 3,	# left direction
+    INPUT_RIGHT    => 4,	# right direction
+    INPUT_A        => 5,	# first action button
+    INPUT_B        => 6,	# second action button
+    INPUT_C        => 7,	# third action button
+    INPUT_D        => 8,	# fourth action button
+);
 
-    # Standard inputs. Must be one of these and are mutually exclusive:
-    method INPUT_NONE     { 0 }		# no input
-    method INPUT_UP       { 1 }		# up direction
-    method INPUT_DOWN     { 2 }		# down direction
-    method INPUT_LEFT     { 3 }		# left direction
-    method INPUT_RIGHT    { 4 }		# right direction
-    method INPUT_A        { 5 }		# first action button
-    method INPUT_B        { 6 }		# second action button
-    method INPUT_C        { 7 }		# third action button
-    method INPUT_D        { 8 }		# fourth action button
+# bool TLN_Init (int hres, int vres, int numlayers, int numsprites, int numanimations);
+my sub TLN_Init(int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * }
+method Init(int32 $hres, int32 $vres, int32 $numlayers, int32 $numsprites, int32 $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) }
 
-    # bool TLN_Init (int hres, int vres, int numlayers, int numsprites, int numanimations);
-    my sub TLN_Init(int32, int32, int32, int32, int32) returns bool is native('Tilengine') { * }
-    method Init(int32 $hres, int32 $vres, int32 $numlayers, int32 $numsprites, int32 $numanimations) { TLN_Init($hres, $vres, $numlayers, $numsprites, $numanimations) }
+# bool TLN_CreateWindow (Str overlay, TLN_WindowFlags flags);
+my sub TLN_CreateWindow(Str, uint32) returns bool is native('Tilengine') { * }
+method CreateWindow(Str $overlay, TLN_WindowFlags $flags) { TLN_CreateWindow($overlay, $flags) }
 
-    # bool TLN_CreateWindow (Str overlay, TLN_WindowFlags flags);
-    my sub TLN_CreateWindow(Str, uint32) returns bool is native('Tilengine') { * }
-    #method CreateWindow(Str $overlay, TLN_WindowFlags $flags) { TLN_CreateWindow($overlay, $flags) }
-    method CreateWindow(Str $overlay, uint32 $flags) { TLN_CreateWindow($overlay, $flags) }
+# TLN_Tileset TLN_LoadTileset (Str filename);
+my sub TLN_LoadTileset(Str) returns Pointer[TLN_Tileset] is native('Tilengine') { * }
+method LoadTileset(Str $filename) { TLN_LoadTileset($filename) }
 
-    # TLN_Tileset TLN_LoadTileset (Str filename);
-    my sub TLN_LoadTileset(Str) returns Pointer[TLN_Tileset] is native('Tilengine') { * }
-    method LoadTileset(Str $filename) { TLN_LoadTileset($filename) }
+# TLN_Tilemap TLN_LoadTilemap (Str filename, Str layername);
+my sub TLN_LoadTilemap(Str, Str) returns Pointer[TLN_Tilemap] is native('Tilengine') { * }
+method LoadTilemap(Str $filename, Str $layername) { TLN_LoadTilemap($filename, $layername) }
 
-    # TLN_Tilemap TLN_LoadTilemap (Str filename, Str layername);
-    my sub TLN_LoadTilemap(Str, Str) returns Pointer[TLN_Tilemap] is native('Tilengine') { * }
-    method LoadTilemap(Str $filename, Str $layername) { TLN_LoadTilemap($filename, $layername) }
+# bool TLN_SetLayer (int nlayer, TLN_Tileset tileset, TLN_Tilemap tilemap);
+my sub TLN_SetLayer(int32, Pointer[TLN_Tileset], Pointer[TLN_Tilemap]) returns bool is native('Tilengine') { * }
+method SetLayer(int32 $nlayer, Pointer[TLN_Tileset] $tileset, Pointer[TLN_Tilemap] $tilemap) { TLN_SetLayer($nlayer, $tileset, $tilemap) }
 
-    # bool TLN_SetLayer (int nlayer, TLN_Tileset tileset, TLN_Tilemap tilemap);
-    my sub TLN_SetLayer(int32, Pointer[TLN_Tileset], Pointer[TLN_Tilemap]) returns bool is native('Tilengine') { * }
-    method SetLayer(int32 $nlayer, Pointer[TLN_Tileset] $tileset, Pointer[TLN_Tilemap] $tilemap) { TLN_SetLayer($nlayer, $tileset, $tilemap) }
+# bool TLN_SetLayerPosition (int nlayer, int hstart, int vstart);
+my sub TLN_SetLayerPosition(int32, int32, int32) returns bool is native('Tilengine') { * }
+method SetLayerPosition(int32 $nlayer, int32 $hstart, int32 $vstart) { TLN_SetLayerPosition($nlayer, $hstart, $vstart) }
 
-    # bool TLN_SetLayerPosition (int nlayer, int hstart, int vstart);
-    my sub TLN_SetLayerPosition(int32, int32, int32) returns bool is native('Tilengine') { * }
-    method SetLayerPosition(int32 $nlayer, int32 $hstart, int32 $vstart) { TLN_SetLayerPosition($nlayer, $hstart, $vstart) }
+# bool TLN_DeleteTileset (TLN_Tileset tileset);
+my sub TLN_DeleteTileset(Pointer[TLN_Tileset]) returns bool is native('Tilengine') { * }
+method DeleteTileset(Pointer[TLN_Tileset] $tileset) { TLN_DeleteTileset($tileset) }
 
-    # bool TLN_DeleteTileset (TLN_Tileset tileset);
-    my sub TLN_DeleteTileset(Pointer[TLN_Tileset]) returns bool is native('Tilengine') { * }
-    method DeleteTileset(Pointer[TLN_Tileset] $tileset) { TLN_DeleteTileset($tileset) }
+# bool TLN_DeleteTilemap (TLN_Tilemap tilemap);
+my sub TLN_DeleteTilemap(Pointer[TLN_Tilemap]) returns bool is native('Tilengine') { * }
+method DeleteTilemap(Pointer[TLN_Tilemap] $tilemap) { TLN_DeleteTilemap($tilemap) }
 
-    # bool TLN_DeleteTilemap (TLN_Tilemap tilemap);
-    my sub TLN_DeleteTilemap(Pointer[TLN_Tilemap]) returns bool is native('Tilengine') { * }
-    method DeleteTilemap(Pointer[TLN_Tilemap] $tilemap) { TLN_DeleteTilemap($tilemap) }
+# void TLN_SetBGColor (uint8 r, uint8 g, uint8 b);
+my sub TLN_SetBGColor(uint8, uint8, uint8)  is native('Tilengine') { * }
+method SetBGColor(uint8 $r, uint8 $g, uint8 $b) { TLN_SetBGColor($r, $g, $b) }
 
-    # void TLN_SetBGColor (uint8 r, uint8 g, uint8 b);
-    my sub TLN_SetBGColor(uint8, uint8, uint8)  is native('Tilengine') { * }
-    method SetBGColor(uint8 $r, uint8 $g, uint8 $b) { TLN_SetBGColor($r, $g, $b) }
+# void TLN_SetLoadPath (Str path);
+my sub TLN_SetLoadPath(Str)  is native('Tilengine') { * }
+method SetLoadPath(Str $path) { TLN_SetLoadPath($path) }
 
-    # void TLN_SetLoadPath (Str path);
-    my sub TLN_SetLoadPath(Str)  is native('Tilengine') { * }
-    method SetLoadPath(Str $path) { TLN_SetLoadPath($path) }
+# TLN_Spriteset TLN_LoadSpriteset (Str name);
+my sub TLN_LoadSpriteset(Str) returns Pointer[TLN_Spriteset] is native('Tilengine') { * }
+method LoadSpriteset(Str $name) { TLN_LoadSpriteset($name) }
 
-    # TLN_Spriteset TLN_LoadSpriteset (Str name);
-    my sub TLN_LoadSpriteset(Str) returns Pointer[TLN_Spriteset] is native('Tilengine') { * }
-    method LoadSpriteset(Str $name) { TLN_LoadSpriteset($name) }
+# bool TLN_SetSpriteSet (int nsprite, TLN_Spriteset spriteset);
+my sub TLN_SetSpriteSet(int32, Pointer[TLN_Spriteset]) returns bool is native('Tilengine') { * }
+method SetSpriteSet(int32 $nsprite, Pointer[TLN_Spriteset] $spriteset) { TLN_SetSpriteSet($nsprite, $spriteset) }
 
-    # bool TLN_SetSpriteSet (int nsprite, TLN_Spriteset spriteset);
-    my sub TLN_SetSpriteSet(int32, Pointer[TLN_Spriteset]) returns bool is native('Tilengine') { * }
-    method SetSpriteSet(int32 $nsprite, Pointer[TLN_Spriteset] $spriteset) { TLN_SetSpriteSet($nsprite, $spriteset) }
+# bool TLN_SetSpritePicture (int nsprite, int entry);
+my sub TLN_SetSpritePicture(int32, int32) returns bool is native('Tilengine') { * }
+method SetSpritePicture(int32 $nsprite, int32 $entry) { TLN_SetSpritePicture($nsprite, $entry) }
 
-    # bool TLN_SetSpritePicture (int nsprite, int entry);
-    my sub TLN_SetSpritePicture(int32, int32) returns bool is native('Tilengine') { * }
-    method SetSpritePicture(int32 $nsprite, int32 $entry) { TLN_SetSpritePicture($nsprite, $entry) }
+# bool TLN_SetSpritePosition (int nsprite, int x, int y);
+my sub TLN_SetSpritePosition(int32, int32, int32) returns bool is native('Tilengine') { * }
+method SetSpritePosition(int32 $nsprite, int32 $x, int32 $y) { TLN_SetSpritePosition($nsprite, $x, $y) }
 
-    # bool TLN_SetSpritePosition (int nsprite, int x, int y);
-    my sub TLN_SetSpritePosition(int32, int32, int32) returns bool is native('Tilengine') { * }
-    method SetSpritePosition(int32 $nsprite, int32 $x, int32 $y) { TLN_SetSpritePosition($nsprite, $x, $y) }
+# TLN_SequencePack TLN_LoadSequencePack (Str filename);
+my sub TLN_LoadSequencePack(Str) returns Pointer[TLN_SequencePack] is native('Tilengine') { * }
+method LoadSequencePack(Str $filename) { TLN_LoadSequencePack($filename) }
 
-    # TLN_SequencePack TLN_LoadSequencePack (Str filename);
-    my sub TLN_LoadSequencePack(Str) returns Pointer[TLN_SequencePack] is native('Tilengine') { * }
-    method LoadSequencePack(Str $filename) { TLN_LoadSequencePack($filename) }
+# TLN_Sequence TLN_FindSequence (TLN_SequencePack sp, Str name);
+my sub TLN_FindSequence(Pointer[TLN_SequencePack], Str) returns Pointer[TLN_Sequence] is native('Tilengine') { * }
+method FindSequence(Pointer[TLN_SequencePack] $sp, Str $name) { TLN_FindSequence($sp, $name) }
 
-    # TLN_Sequence TLN_FindSequence (TLN_SequencePack sp, Str name);
-    my sub TLN_FindSequence(Pointer[TLN_SequencePack], Str) returns Pointer[TLN_Sequence] is native('Tilengine') { * }
-    method FindSequence(Pointer[TLN_SequencePack] $sp, Str $name) { TLN_FindSequence($sp, $name) }
+# bool TLN_SetTilesetAnimation (int index, int nlayer, TLN_Sequence sequence);
+my sub TLN_SetTilesetAnimation(int32, int32, Pointer[TLN_Sequence]) returns bool is native('Tilengine') { * }
+method SetTilesetAnimation(int32 $index, int32 $nlayer, Pointer[TLN_Sequence] $sequence) { TLN_SetTilesetAnimation($index, $nlayer, $sequence) }
 
-    # bool TLN_SetTilesetAnimation (int index, int nlayer, TLN_Sequence sequence);
-    my sub TLN_SetTilesetAnimation(int32, int32, Pointer[TLN_Sequence]) returns bool is native('Tilengine') { * }
-    method SetTilesetAnimation(int32 $index, int32 $nlayer, Pointer[TLN_Sequence] $sequence) { TLN_SetTilesetAnimation($index, $nlayer, $sequence) }
+# bool TLN_SetSpriteAnimation (int index, int nsprite, TLN_Sequence sequence, int loop);
+my sub TLN_SetSpriteAnimation(int32, int32, Pointer[TLN_Sequence], int32) returns bool is native('Tilengine') { * }
+method SetSpriteAnimation(int32 $index, int32 $nsprite, Pointer[TLN_Sequence] $sequence, int32 $loop) { TLN_SetSpriteAnimation($index, $nsprite, $sequence, $loop) }
 
-    # bool TLN_SetSpriteAnimation (int index, int nsprite, TLN_Sequence sequence, int loop);
-    my sub TLN_SetSpriteAnimation(int32, int32, Pointer[TLN_Sequence], int32) returns bool is native('Tilengine') { * }
-    method SetSpriteAnimation(int32 $index, int32 $nsprite, Pointer[TLN_Sequence] $sequence, int32 $loop) { TLN_SetSpriteAnimation($index, $nsprite, $sequence, $loop) }
+# void TLN_DrawFrame (int time);
+my sub TLN_DrawFrame(int32)  is native('Tilengine') { * }
+method DrawFrame(int32 $time) { TLN_DrawFrame($time) }
 
-    # void TLN_DrawFrame (int time);
-    my sub TLN_DrawFrame(int32)  is native('Tilengine') { * }
-    method DrawFrame(int32 $time) { TLN_DrawFrame($time) }
+# void TLN_Deinit (void);
+my sub TLN_Deinit()  is native('Tilengine') { * }
+method Deinit( ) { TLN_Deinit() }
 
-    # void TLN_Deinit (void);
-    my sub TLN_Deinit()  is native('Tilengine') { * }
-    method Deinit( ) { TLN_Deinit() }
+# bool TLN_DeleteSequencePack (TLN_SequencePack sp);
+my sub TLN_DeleteSequencePack(Pointer[TLN_SequencePack]) returns bool is native('Tilengine') { * }
+method DeleteSequencePack(Pointer[TLN_SequencePack] $sp) { TLN_DeleteSequencePack($sp) }
 
-    # bool TLN_DeleteSequencePack (TLN_SequencePack sp);
-    my sub TLN_DeleteSequencePack(Pointer[TLN_SequencePack]) returns bool is native('Tilengine') { * }
-    method DeleteSequencePack(Pointer[TLN_SequencePack] $sp) { TLN_DeleteSequencePack($sp) }
+# void TLN_DeleteWindow (void);
+my sub TLN_DeleteWindow()  is native('Tilengine') { * }
+method DeleteWindow( ) { TLN_DeleteWindow() }
 
-    # void TLN_DeleteWindow (void);
-    my sub TLN_DeleteWindow()  is native('Tilengine') { * }
-    method DeleteWindow( ) { TLN_DeleteWindow() }
+# bool TLN_ProcessWindow (void);
+my sub TLN_ProcessWindow() returns bool is native('Tilengine') { * }
+method ProcessWindow( ) { TLN_ProcessWindow() }
 
-    # bool TLN_ProcessWindow (void);
-    my sub TLN_ProcessWindow() returns bool is native('Tilengine') { * }
-    method ProcessWindow( ) { TLN_ProcessWindow() }
+# bool TLN_GetInput (TLN_Input id);
+my sub TLN_GetInput(int32) returns bool is native('Tilengine') { * }
+method GetInput(int32 $id) { TLN_GetInput($id) }
 
-    # bool TLN_GetInput (TLN_Input id);
-    my sub TLN_GetInput(int32) returns bool is native('Tilengine') { * }
-    method GetInput(int32 $id) { TLN_GetInput($id) }
+# bool TLN_ConfigSprite (int nsprite, TLN_Spriteset spriteset, TLN_TileFlags flags);
+my sub TLN_ConfigSprite(int32, Pointer[TLN_Spriteset], int32) returns bool is native('Tilengine') { * }
+method ConfigSprite(int32 $nsprite, Pointer[TLN_Spriteset] $spriteset, int32 $flags) { TLN_ConfigSprite($nsprite, $spriteset, $flags) }
 
-    # bool TLN_ConfigSprite (int nsprite, TLN_Spriteset spriteset, TLN_TileFlags flags);
-    my sub TLN_ConfigSprite(int32, Pointer[TLN_Spriteset], int32) returns bool is native('Tilengine') { * }
-    method ConfigSprite(int32 $nsprite, Pointer[TLN_Spriteset] $spriteset, int32 $flags) { TLN_ConfigSprite($nsprite, $spriteset, $flags) }
+# bool TLN_GetAnimationState (int index);
+my sub TLN_GetAnimationState(int32) returns bool is native('Tilengine') { * }
+method GetAnimationState(int32 $index) { TLN_GetAnimationState($index) }
 
-    # bool TLN_GetAnimationState (int index);
-    my sub TLN_GetAnimationState(int32) returns bool is native('Tilengine') { * }
-    method GetAnimationState(int32 $index) { TLN_GetAnimationState($index) }
+# bool TLN_DisableAnimation (int index);
+my sub TLN_DisableAnimation(int32) returns bool is native('Tilengine') { * }
+method DisableAnimation(int32 $index) { TLN_DisableAnimation($index) }
 
-    # bool TLN_DisableAnimation (int index);
-    my sub TLN_DisableAnimation(int32) returns bool is native('Tilengine') { * }
-    method DisableAnimation(int32 $index) { TLN_DisableAnimation($index) }
+# bool TLN_GetTilemapTile (TLN_Tilemap tilemap, int row, int col, TLN_Tile tile);
+my sub TLN_GetTilemapTile(Pointer[TLN_Tilemap], int32, int32, Tile) returns bool is native('Tilengine') { * }
+method GetTilemapTile(Pointer[TLN_Tilemap] $tilemap, int32 $row, int32 $col, Tile $tile) { TLN_GetTilemapTile($tilemap, $row, $col, $tile) }
 
-    # bool TLN_GetTilemapTile (TLN_Tilemap tilemap, int row, int col, TLN_Tile tile);
-    my sub TLN_GetTilemapTile(Pointer[TLN_Tilemap], int32, int32, Tile) returns bool is native('Tilengine') { * }
-    method GetTilemapTile(Pointer[TLN_Tilemap] $tilemap, int32 $row, int32 $col, Tile $tile) { TLN_GetTilemapTile($tilemap, $row, $col, $tile) }
+# bool TLN_SetTilemapTile (TLN_Tilemap tilemap, int row, int col, TLN_Tile tile);
+my sub TLN_SetTilemapTile(Pointer[TLN_Tilemap], int32, int32, Tile) returns bool is native('Tilengine') { * }
+method SetTilemapTile(Pointer[TLN_Tilemap] $tilemap, int32 $row, int32 $col, Tile $tile) { TLN_SetTilemapTile($tilemap, $row, $col, $tile) }
 
-    # bool TLN_SetTilemapTile (TLN_Tilemap tilemap, int row, int col, TLN_Tile tile);
-    my sub TLN_SetTilemapTile(Pointer[TLN_Tilemap], int32, int32, Tile) returns bool is native('Tilengine') { * }
-    method SetTilemapTile(Pointer[TLN_Tilemap] $tilemap, int32 $row, int32 $col, Tile $tile) { TLN_SetTilemapTile($tilemap, $row, $col, $tile) }
+# TLN_Palette TLN_GetLayerPalette (int nlayer);
+my sub TLN_GetLayerPalette(int32) returns Pointer[TLN_Palette] is native('Tilengine') { * }
+method GetLayerPalette(int32 $nlayer) { TLN_GetLayerPalette($nlayer) }
 
-    # TLN_Palette TLN_GetLayerPalette (int nlayer);
-    my sub TLN_GetLayerPalette(int32) returns Pointer[TLN_Palette] is native('Tilengine') { * }
-    method GetLayerPalette(int32 $nlayer) { TLN_GetLayerPalette($nlayer) }
+# bool TLN_SetPaletteAnimation (int index, TLN_Palette palette, TLN_Sequence sequence, bool blend);
+my sub TLN_SetPaletteAnimation(int32, Pointer[TLN_Palette], Pointer[TLN_Sequence], int32) returns bool is native('Tilengine') { * }
+method SetPaletteAnimation(int32 $index, Pointer[TLN_Palette] $palette, Pointer[TLN_Sequence] $sequence, int32 $blend) { TLN_SetPaletteAnimation($index, $palette, $sequence, $blend) }
 
-    # bool TLN_SetPaletteAnimation (int index, TLN_Palette palette, TLN_Sequence sequence, bool blend);
-    my sub TLN_SetPaletteAnimation(int32, Pointer[TLN_Palette], Pointer[TLN_Sequence], int32) returns bool is native('Tilengine') { * }
-    method SetPaletteAnimation(int32 $index, Pointer[TLN_Palette] $palette, Pointer[TLN_Sequence] $sequence, int32 $blend) { TLN_SetPaletteAnimation($index, $palette, $sequence, $blend) }
+# void TLN_BeginWindowFrame (int time);
+my sub TLN_BeginWindowFrame(int32)  is native('Tilengine') { * }
+method BeginWindowFrame(int32 $time) { TLN_BeginWindowFrame($time) }
 
-    # void TLN_BeginWindowFrame (int time);
-    my sub TLN_BeginWindowFrame(int32)  is native('Tilengine') { * }
-    method BeginWindowFrame(int32 $time) { TLN_BeginWindowFrame($time) }
+# void TLN_EndWindowFrame (void);
+my sub TLN_EndWindowFrame()  is native('Tilengine') { * }
+method EndWindowFrame( ) { TLN_EndWindowFrame() }
 
-    # void TLN_EndWindowFrame (void);
-    my sub TLN_EndWindowFrame()  is native('Tilengine') { * }
-    method EndWindowFrame( ) { TLN_EndWindowFrame() }
+# bool TLN_DrawNextScanline (void);
+my sub TLN_DrawNextScanline() returns bool is native('Tilengine') { * }
+method DrawNextScanline( ) { TLN_DrawNextScanline() }
 
-    # bool TLN_DrawNextScanline (void);
-    my sub TLN_DrawNextScanline() returns bool is native('Tilengine') { * }
-    method DrawNextScanline( ) { TLN_DrawNextScanline() }
-
-}
+#}
 
 =finish
 

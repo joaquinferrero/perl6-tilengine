@@ -57,16 +57,16 @@ my Pointer $seq_coin;
 my Pointer $seq_question;
 my Pointer $seq_walking;
 my Pointer $spriteset;
-my Int $frame    = 0;
-my Int $player_x = -16;
-my Real $player_y = 160.0;
-my Real $base     = 160.0;
+my Int  $frame     = 0;
+my Int  $player_x  = -16;
+my Real $player_y  = 160.0;
+my Real $base      = 160.0;
 my Real $velocidad = 0.0;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER,1,3);
 #$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
-$tln.CreateWindow("", $tln.CWF_VSYNC);
+$tln.CreateWindow("", CWF_VSYNC);
 $tln.SetBGColor(0, 96, 184);
 $tln.SetLoadPath("assets/");
 
@@ -100,7 +100,7 @@ while $tln.ProcessWindow() {
     if $player_x >= WIDTH { $player_x = -16 }
 
     # process user input
-    $pulsado = $tln.GetInput($tln.INPUT_UP) ?? 1 !! 0;
+    $pulsado = $tln.GetInput(INPUT_UP) ?? 1 !! 0;
 
     if $pulsado {
     	if not $hay_salto {
