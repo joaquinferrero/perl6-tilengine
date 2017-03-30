@@ -62,11 +62,9 @@ my Int $player_y = 160;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER, 1, 3);
-#$tln.CreateWindow("overlay.bmp", TLN_WindowFlags(CWF_VSYNC));
-#$tln.CreateWindow("overlay.bmp", Game::Engine::Tilengine::CWF_VSYNC);
-$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
+$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
 $tln.SetBGColor(0, 96, 184);
-$tln.SetLoadPath("assets");
+$tln.SetLoadPath("assets/");
 
 # setup layers
 LoadLayer(LAYER_FOREGROUND, "smw_foreground");
@@ -77,11 +75,11 @@ $tln.SetLayerPosition(LAYER_BACKGROUND, 0, 80);
 # setup sprite
 $spriteset = $tln.LoadSpriteset("smw_sprite");
 $tln.SetSpriteSet(0, $spriteset);
-#$tln.ConfigSprite(0, $spriteset, FLAG_NONE);
+$tln.ConfigSprite(0, $spriteset, Tilengine::FLAG_NONE);
 $tln.SetSpritePicture(0, 0);
 $tln.SetSpritePosition(0, $player_x, $player_y);
 
-#  setup animations
+# setup animations
 $sp           = $tln.LoadSequencePack("sequences.sqx");
 $seq_coin     = $tln.FindSequence($sp, "seq_coin");
 $seq_question = $tln.FindSequence($sp, "seq_question");
@@ -90,7 +88,7 @@ $tln.SetTilesetAnimation(0, LAYER_FOREGROUND, $seq_coin);
 $tln.SetTilesetAnimation(1, LAYER_FOREGROUND, $seq_question);
 $tln.SetSpriteAnimation(2, 0, $seq_walking, 0);
 
-#  main loop
+# main loop
 while $tln.ProcessWindow() {
 
     $player_x += 1;

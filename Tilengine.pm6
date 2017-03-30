@@ -18,7 +18,7 @@ class TLN_SequencePack is repr('CPointer') is export { }    # Opaque sequence pa
 class TLN_Palette      is repr('CPointer') is export { }    # Opaque palette reference
 
 ## CreateWindow flags. Can be none or a combination of the following:
-my Int enum TLN_WindowFlags is export (
+enum TLN_WindowFlags (
     CWF_FULLSCREEN => 1+<0,    # create a fullscreen window
     CWF_VSYNC      => 1+<1,    # sync frame updates with vertical retrace
     CWF_S1         => 1+<2,    # create a window the same size as the framebuffer
@@ -29,7 +29,7 @@ my Int enum TLN_WindowFlags is export (
 );
 
 # tile/sprite flags. Can be none or a combination of the following:
-my Int enum TLN_Flags is export (
+enum TLN_Flags (
     FLAG_NONE      => 0      ,	# no flags
     FLAG_FLIPX     => 1+<(15),	# horizontal flip
     FLAG_FLIPY     => 1+<(14),	# vertical flip
@@ -38,7 +38,7 @@ my Int enum TLN_Flags is export (
 );
 
 # Standard inputs. Must be one of these and are mutually exclusive:
-my Int enum TLN_Input is export (
+enum TLN_Input (
     INPUT_NONE     => 0,	# no input
     INPUT_UP       => 1,	# up direction
     INPUT_DOWN     => 2,	# down direction
@@ -144,7 +144,7 @@ method ProcessWindow( ) { TLN_ProcessWindow() }
 
 # bool TLN_GetInput (TLN_Input id);
 my sub TLN_GetInput(int32) returns bool is native('Tilengine') { * }
-method GetInput(int32 $id) { TLN_GetInput($id) }
+method GetInput(TLN_Input $id) { TLN_GetInput($id) }
 
 # bool TLN_ConfigSprite (int nsprite, TLN_Spriteset spriteset, TLN_TileFlags flags);
 my sub TLN_ConfigSprite(int32, Pointer[TLN_Spriteset], int32) returns bool is native('Tilengine') { * }
@@ -299,9 +299,6 @@ class TLN_TileInfo is repr('CStruct') is export  {
 class TLN_Tile is Tile is export { }              # Tile reference
 class TLN_Bitmap       is repr('CPointer') { }    # Opaque bitmap reference
 class TLN_Cycle        is repr('CPointer') { }    # Opaque color cycle reference
-
-enum TLN_Input is export (
-);
 
 # Error codes
 enum TLN_Error is export (
