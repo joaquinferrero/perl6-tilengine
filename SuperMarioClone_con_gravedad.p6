@@ -8,7 +8,7 @@
 # imports
 use NativeCall;
 
-use lib '../bindings/perl6';
+use lib "%*ENV<HOME>/Documentos/Desarrollo/Tilengine/perl6";
 use Tilengine;
 
 my $tln = Tilengine.new();
