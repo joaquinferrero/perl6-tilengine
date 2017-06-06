@@ -6,8 +6,8 @@
 
 # imports
 use NativeCall;
-use lib '../bindings/perl6';
-use Tilengine2;
+use lib "%*ENV<HOME>/Documentos/Desarrollo/Tilengine/perl6";
+use Tilengine;
 
 my $tln = Tilengine.new();
 
@@ -31,7 +31,7 @@ my TLN_Affine $affine = TLN_Affine.new(angle => 0e0, sx => 1e0, sy => 1e0, dx =>
 
 # setup engine
 $tln.Init(WIDTH, HEIGHT, 2, 0, 0);
-$tln.CreateWindow("overlay.bmp", CWF_VSYNC);
+$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
 $tln.SetBGColor(0, 0, 0);
 
 # load resources
@@ -74,10 +74,10 @@ while $tln.ProcessWindow() {
     $tln.ResetLayerMode(LAYER_BACKGROUND);
 
     # input
-    if $tln.GetInput(INPUT_LEFT)		{ $angle -= 2 }
-    elsif $tln.GetInput(INPUT_RIGHT)	{ $angle += 2 }
+    if $tln.GetInput(Tilengine::INPUT_LEFT)		{ $angle -= 2 }
+    elsif $tln.GetInput(Tilengine::INPUT_RIGHT)	{ $angle += 2 }
     
-    if $tln.GetInput(INPUT_UP) {
+    if $tln.GetInput(Tilengine::INPUT_UP) {
 	$s += $a;
 	if $s > 2e0 { $s = 2e0 }
     }
@@ -85,7 +85,7 @@ while $tln.ProcessWindow() {
 	$s -= $a;
     }
     
-    if $tln.GetInput(INPUT_DOWN) {
+    if $tln.GetInput(Tilengine::INPUT_DOWN) {
 	$s -= $a;
 	if $s < -2e0 { $s = -2e0 }
     }

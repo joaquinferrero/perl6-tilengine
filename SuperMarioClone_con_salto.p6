@@ -8,7 +8,7 @@
 # imports
 use NativeCall;
 
-use lib '../bindings/perl6';
+use lib "%*ENV<HOME>/Documentos/Desarrollo/Tilengine/perl6";
 use Tilengine;
 
 my $tln = Tilengine.new();
@@ -66,7 +66,8 @@ my Real $velocidad = 0.0;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER,1,3);
-$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
+#$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
+$tln.CreateWindow(0, Tilengine::CWF_VSYNC);
 $tln.SetBGColor(0, 96, 184);
 $tln.SetLoadPath("assets/");
 

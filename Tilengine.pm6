@@ -188,69 +188,21 @@ method DrawNextScanline( ) { TLN_DrawNextScanline() }
 
 #}
 
-=finish
-
-# 
-# Tilengine - 2D Graphics library with raster effects
-# Copyright (c) 2015-2017 Marc Palacios Domènech (megamarc@hotmail.com)
-# All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without modification 
-# are permitted provided that the following conditions are met:
-# 
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation 
-#    and/or other materials provided with the distribution.
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
-
-# 
-# ***************************************************************************
-# \file
-# Tilengine header
-# \author Marc Palacios (Megamarc)
-# \date Jun 2015
-# http://www.tilengine.org
-# 
-# Main header for Tilengine 2D scanline-based graphics engine
-# 
-# ****************************************************************************
-# 
-
-# Tilengine_core
-
-# Tilengine shared
-
-# bool C++
-
-
-# version
-
-# fixed point helper
 
 #  
 # layer blend modes. Must be one of these and are mutually exclusive:
 # 
 enum TLN_Blend is export (
     BLEND_NONE                => 0,               # blending disabled
-    BLEND_MIX                 => 1,               # color averaging
-    BLEND_ADD                 => 2,               # color is always brighter (simulate light effects)
-    BLEND_SUB                 => 3,               # color is always darker (simulate shadow effects)
-    BLEND_MOD                 => 4,               # color is always darker (simulate shadow effects)
-    MAX_BLEND                 => 5,               
+    BLEND_MIX25               => 1,               # color averaging 1
+    BLEND_MIX50               => 2,               # color averaging 2
+    BLEND_MIX75               => 3,               # color averaging 3
+    BLEND_ADD                 => 4,               # color is always brighter (simulate light effects)
+    BLEND_SUB                 => 5,               # color is always darker (simulate shadow effects)
+    BLEND_MOD                 => 6,               # color is always darker (simulate shadow effects)
+    BLEND_CUSTOM              => 7,		  # user provided blend function with TLN_SetCustomBlendFunction()
+    MAX_BLEND                 => 8,
+    BLEND_MIX		      => 2,    
 );
 
 # Affine transformation parameters
@@ -322,6 +274,72 @@ enum TLN_Error is export (
     TLN_ERR_UNSUPPORTED       => 17,              # Unsupported function
     TLN_MAX_ERR               => 18,              
 );
+
+# bool TLN_ResetLayerMode (int nlayer);
+my sub TLN_ResetLayerMode(int32) returns bool is native('Tilengine') { * }
+method ResetLayerMode(int32 $nlayer) { TLN_ResetLayerMode($nlayer) }
+
+# bool TLN_SetLayerScaling (int nlayer, float xfactor, float yfactor);
+my sub TLN_SetLayerScaling(int32, num32, num32) returns bool is native('Tilengine') { * }
+method SetLayerScaling(int32 $nlayer, num32 $xfactor, num32 $yfactor) { TLN_SetLayerScaling($nlayer, $xfactor, $yfactor) }
+
+# bool TLN_SetLayerBlendMode (int nlayer, TLN_Blend mode, uint8 factor);
+my sub TLN_SetLayerBlendMode(int32, int32, uint8) returns bool is native('Tilengine') { * }
+method SetLayerBlendMode(int32 $nlayer, int32 $mode, uint8 $factor) { TLN_SetLayerBlendMode($nlayer, $mode, $factor) }
+
+
+=finish
+
+# 
+# Tilengine - 2D Graphics library with raster effects
+# Copyright (c) 2015-2017 Marc Palacios Domènech (megamarc@hotmail.com)
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without modification 
+# are permitted provided that the following conditions are met:
+# 
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation 
+#    and/or other materials provided with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+
+# 
+# ***************************************************************************
+# \file
+# Tilengine header
+# \author Marc Palacios (Megamarc)
+# \date Jun 2015
+# http://www.tilengine.org
+# 
+# Main header for Tilengine 2D scanline-based graphics engine
+# 
+# ****************************************************************************
+# 
+
+# Tilengine_core
+
+# Tilengine shared
+
+# bool C++
+
+
+# version
+
+# fixed point helper
 
 # 
 # \anchor group_setup
@@ -616,10 +634,6 @@ method DeleteBitmap(Pointer $bitmap) { TLN_DeleteBitmap($bitmap) }
 my sub TLN_SetLayerPalette(int32, Pointer) returns bool is native('Tilengine') { * }
 method SetLayerPalette(int32 $nlayer, Pointer $palette) { TLN_SetLayerPalette($nlayer, $palette) }
 
-# bool TLN_SetLayerScaling (int nlayer, float xfactor, float yfactor);
-my sub TLN_SetLayerScaling(int32, num32, num32) returns bool is native('Tilengine') { * }
-method SetLayerScaling(int32 $nlayer, num32 $xfactor, num32 $yfactor) { TLN_SetLayerScaling($nlayer, $xfactor, $yfactor) }
-
 # bool TLN_SetLayerAffineTransform (int nlayer, TLN_Affine *affine);
 my sub TLN_SetLayerAffineTransform(int32, Pointer) returns bool is native('Tilengine') { * }
 method SetLayerAffineTransform(int32 $nlayer, Pointer $affine) { TLN_SetLayerAffineTransform($nlayer, $affine) }
@@ -628,17 +642,9 @@ method SetLayerAffineTransform(int32 $nlayer, Pointer $affine) { TLN_SetLayerAff
 my sub TLN_SetLayerTransform(int32, num32, num32, num32, num32, num32) returns bool is native('Tilengine') { * }
 method SetLayerTransform(int32 $layer, num32 $angle, num32 $dx, num32 $dy, num32 $sx, num32 $sy) { TLN_SetLayerTransform($layer, $angle, $dx, $dy, $sx, $sy) }
 
-# bool TLN_SetLayerBlendMode (int nlayer, TLN_Blend mode, uint8 factor);
-my sub TLN_SetLayerBlendMode(int32, int32, uint8) returns bool is native('Tilengine') { * }
-method SetLayerBlendMode(int32 $nlayer, int32 $mode, uint8 $factor) { TLN_SetLayerBlendMode($nlayer, $mode, $factor) }
-
 # bool TLN_SetLayerColumnOffset (int nlayer, int* offset);
 my sub TLN_SetLayerColumnOffset(int32, Pointer) returns bool is native('Tilengine') { * }
 method SetLayerColumnOffset(int32 $nlayer, Pointer $offset) { TLN_SetLayerColumnOffset($nlayer, $offset) }
-
-# bool TLN_ResetLayerMode (int nlayer);
-my sub TLN_ResetLayerMode(int32) returns bool is native('Tilengine') { * }
-method ResetLayerMode(int32 $nlayer) { TLN_ResetLayerMode($nlayer) }
 
 # bool TLN_DisableLayer (int nlayer);
 my sub TLN_DisableLayer(int32) returns bool is native('Tilengine') { * }

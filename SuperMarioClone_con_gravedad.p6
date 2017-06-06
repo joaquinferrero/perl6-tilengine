@@ -70,7 +70,8 @@ my Real $velocidad = 0.0;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER,1,3);
-$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
+#$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
+$tln.CreateWindow("", Tilengine::CWF_S3);
 $tln.SetBGColor(0, 96, 184);
 $tln.SetLoadPath("assets/");
 
@@ -188,7 +189,7 @@ while $tln.ProcessWindow() {
 
 
 
-    $x_tile = Int(($player_x + $fore_x) ÷ 16 + 1);
+    $x_tile = Int(($player_x + $fore_x) ÷ 16 + 0);
     $y_tile = Int(($player_y          ) ÷ 16 + 5);
     $tln.GetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, $y_tile, $x_tile, $tile);
     $tln.SetTilemapTile(@layers[LAYER_FOREGROUND].tilemap, 5, $x_tile, $tile);
@@ -208,16 +209,22 @@ sub caer {
     if $velocidad > 0 {
     	$tln.SetSpritePicture(0, 8);	# cayendo
 
-	if $player_y > $base or $tile.index == 12 {
+	if $player_y > $base or $tile.index == 11|12|13|9|33|34|35|36|37|38|39|46|47|48 {
+
+	    if $velocidad > 7 {
+		
+		$velocidad = -$velocidad ÷ 3;	# rebote
+
+		if abs($velocidad) < 2 { $velocidad = 0; $hay_salto = False; }
+		$tln.SetSpritePicture(0, 10);
+		$hay_salto = True;
+		return;
+	    }
+
 	    $player_y = $player_y >= $base ?? $base !! ($y_tile-5)*16;
 	    $hay_salto = False;
 	    return;
 	}
-	#    $velocidad = -$velocidad ÷ 4;	# rebote
-	#    if abs($velocidad) < 2 { $velocidad = 0 }
-	#    $tln.SetSpritePicture(0, 10);
-	#    return;
-	#}
 
     }
 

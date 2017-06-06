@@ -62,7 +62,7 @@ my Int $player_y = 160;
 
 # basic setup
 $tln.Init(WIDTH, HEIGHT, MAX_LAYER, 1, 3);
-$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
+$tln.CreateWindow("", Tilengine::CWF_VSYNC);
 $tln.SetBGColor(0, 96, 184);
 $tln.SetLoadPath("assets/");
 

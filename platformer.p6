@@ -5,7 +5,7 @@
 # 
 
 # imports
-use lib '../bindings/perl6';
+use lib "%*ENV<HOME>/Documentos/Desarrollo/Tilengine/perl6";
 use Tilengine;
 
 my $tln = Tilengine.new;
@@ -59,7 +59,7 @@ sub raster_effect ($line) {
 
 # initialise
 $tln.Init(400,240,2,80,1);
-$tln.CreateWindow("overlay.bmp", $tln.CWF_VSYNC);
+$tln.CreateWindow("overlay.bmp", Tilengine::CWF_VSYNC);
 
 # setup layers
 SetupLayer(LAYER_FOREGROUND, "Sonic_md_fg1");
@@ -75,7 +75,7 @@ $tln.SetPaletteAnimation(0, $palette, $sequence, True);
 while $tln.ProcessWindow() {
 
     # process user input
-    if $tln.GetInput($tln.INPUT_RIGHT) {
+    if $tln.GetInput(Tilengine::INPUT_RIGHT) {
 	$speed += 0.02;
 	if $speed > 1.0 {
 	    $speed = 1.0;
@@ -88,7 +88,7 @@ while $tln.ProcessWindow() {
 	}
     }
 
-    if $tln.GetInput($tln.INPUT_LEFT) {
+    if $tln.GetInput(Tilengine::INPUT_LEFT) {
 	$speed -= 0.02;
 	if $speed < -1.0 {
 	    $speed = -1.0;

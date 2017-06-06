@@ -7,8 +7,8 @@
 #
 
 # imports
-use lib '../bindings/perl6';
-use Tilengine3;
+use lib "%*ENV<HOME>/Documentos/Desarrollo/Tilengine/perl6";
+use Tilengine;
 
 my $tln = Tilengine.new();
 
@@ -24,7 +24,7 @@ constant MAX_SCALE	  = 200;
 my Int  $xpos  = 0;
 my Int  $ypos  = 192;
 my Int  $scale = 100;
-my Int  $alpha = 255;
+my uint8  $alpha = 255;
 my Int  $frame = 0;
 
 # linear interpolation
@@ -41,7 +41,7 @@ sub SetupLayer ($nlayer, $name) {
 
 # setup engine
 $tln.Init(WIDTH, HEIGHT, 2,0,0);
-$tln.CreateWindow("overlay3.bmp", CWF_VSYNC);
+$tln.CreateWindow("overlay3.bmp", Tilengine::CWF_VSYNC);
 $tln.SetBGColor(34,136,170);
 
 # setup layers
@@ -51,14 +51,14 @@ SetupLayer(LAYER_BACKGROUND, "rolo");
 # main loop
 while $tln.ProcessWindow() {
 	# user input
-	if $tln.GetInput(INPUT_LEFT)				{ $xpos  -= 1 }
-	if $tln.GetInput(INPUT_RIGHT)				{ $xpos  += 1 }
-	if $tln.GetInput(INPUT_UP) and $ypos > 0		{ $ypos  -= 1 }
-	if $tln.GetInput(INPUT_DOWN)				{ $ypos  += 1 }
-	if $tln.GetInput(INPUT_A)  and $scale < MAX_SCALE	{ $scale += 1 }
-	if $tln.GetInput(INPUT_B)  and $scale > MIN_SCALE	{ $scale -= 1 }
-	if $tln.GetInput(INPUT_C)  and $alpha < 255		{ $alpha += 2 }
-	if $tln.GetInput(INPUT_D)  and $alpha > 1		{ $alpha -= 2 }
+	if $tln.GetInput(Tilengine::INPUT_LEFT)				{ $xpos  -= 1 }
+	if $tln.GetInput(Tilengine::INPUT_RIGHT)				{ $xpos  += 1 }
+	if $tln.GetInput(Tilengine::INPUT_UP) and $ypos > 0		{ $ypos  -= 1 }
+	if $tln.GetInput(Tilengine::INPUT_DOWN)				{ $ypos  += 1 }
+	if $tln.GetInput(Tilengine::INPUT_A)  and $scale < MAX_SCALE	{ $scale += 1 }
+	if $tln.GetInput(Tilengine::INPUT_B)  and $scale > MIN_SCALE	{ $scale -= 1 }
+	if $tln.GetInput(Tilengine::INPUT_C)  and $alpha < 99		{ $alpha += 1 }
+	if $tln.GetInput(Tilengine::INPUT_D)  and $alpha > 1		{ $alpha -= 1 }
 
 	# calculate scale factor from fixed point base
 	my Num $fgscale = ($scale/100.0).Num;
@@ -76,8 +76,14 @@ while $tln.ProcessWindow() {
 	$tln.SetLayerScaling(LAYER_BACKGROUND, $bgscale, $bgscale);
 
 	# update transparency
-	if $alpha < 255 {
-	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_MIX, $alpha);
+	if $alpha < 25 {
+	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_MIX25, 0);
+	}
+	elsif $alpha < 50 {
+	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_MIX50, 0);
+	}
+	elsif $alpha < 75 {
+	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_MIX75, 0);
 	}
 	else {
 	    $tln.SetLayerBlendMode(LAYER_FOREGROUND, BLEND_NONE, 0);
